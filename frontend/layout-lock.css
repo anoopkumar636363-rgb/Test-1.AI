@@ -1,0 +1,96 @@
+/* BIS AI Assistant — desktop layout lock */
+
+html, body {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.topbar {
+  position: fixed !important;
+  inset: 0 0 auto 0 !important;
+  width: 100% !important;
+  height: 72px !important;
+  z-index: 1000 !important;
+}
+
+.workspace {
+  position: fixed !important;
+  inset: 72px 0 0 0 !important;
+  width: 100vw !important;
+  height: calc(100vh - 72px) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-columns: 300px minmax(0, 1fr) 390px !important;
+  grid-template-areas: "history assistant tools" !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+}
+
+.history-panel,
+.assistant-column,
+.tools-column {
+  min-width: 0 !important;
+  max-width: none !important;
+  transform: none !important;
+}
+
+.history-panel {
+  grid-area: history !important;
+  width: 300px !important;
+}
+
+.assistant-column {
+  grid-area: assistant !important;
+  width: auto !important;
+  overflow: hidden !important;
+}
+
+.tools-column {
+  grid-area: tools !important;
+  width: 390px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+footer {
+  display: none !important;
+}
+
+/* An accidental click must never make the layout grow. */
+.tool-card,
+.help-card,
+.chat-card,
+.chat,
+.tool-results,
+.standard-result,
+.cert-step,
+.verify-info,
+.verify-success {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-wrap: anywhere !important;
+}
+
+@media (max-width: 900px) {
+  html, body { overflow: auto; }
+  .topbar { position: sticky !important; inset: auto !important; width: 100% !important; }
+  .workspace {
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: calc(100vh - 72px) !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas: "assistant" !important;
+    overflow: visible !important;
+  }
+  .assistant-column { width: auto !important; }
+  .tools-column { width: auto !important; }
+  .history-panel { width: min(80vw, 280px) !important; }
+}
