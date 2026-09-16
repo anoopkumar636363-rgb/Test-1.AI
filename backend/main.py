@@ -17,7 +17,7 @@ DATA_FILE = BASE_DIR / "bis_data.json"
 load_dotenv(BASE_DIR / ".env")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 
 DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
 
