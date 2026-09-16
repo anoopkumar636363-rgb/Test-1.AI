@@ -19,12 +19,25 @@ load_dotenv(BASE_DIR / ".env")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 
+# The first model is the configured primary. If a transient provider error such
+# as 503/429/5xx occurs, the assistant automatically tries the remaining models.
+# All models use the same Gemini API key/project; no extra keys are required.
+DEFAULT_FALLBACK_MODELS = [
+    "gemini-3.5-flash",
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+]
+configured_models = [item.strip() for item in os.getenv("GEMINI_MODELS", "").split(",") if item.strip()]
+GEMINI_MODELS = list(dict.fromkeys(([GEMINI_MODEL] if GEMINI_MODEL else []) + configured_models + DEFAULT_FALLBACK_MODELS))
+
 DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
 
 app = FastAPI(
     title="BIS AI Assistant API",
     description="SIH26107 prototype for Indian Standards and BIS services.",
-    version="2.6.0",
+    version="2.7.0",
 )
 
 app.add_middleware(
@@ -138,23 +151,49 @@ def _history_prompt(history: list[ChatMessage]) -> str:
     return "\n".join(lines)
 
 
+def _is_transient_gemini_error(exc: Exception) -> bool:
+    """Only fail over for errors that can reasonably be temporary."""
+    text = str(exc).lower()
+    return any(
+        marker in text
+        for marker in (
+            " 429", "429 ", "resource_exhausted", "rate limit",
+            " 500", "500 ", " 502", "502 ", " 503", "503 ",
+            " 504", "504 ", "unavailable", "overloaded", "temporarily",
+        )
+    )
+
+
+def _error_label(exc: Exception) -> str:
+    text = str(exc).lower()
+    if "429" in text or "resource_exhausted" in text or "rate limit" in text:
+        return "rate_limit_or_quota"
+    if "503" in text or "unavailable" in text or "overloaded" in text:
+        return "temporary_model_unavailable"
+    if "401" in text or "unauthorized" in text or "api key" in text:
+        return "authentication"
+    if "403" in text or "permission" in text or "forbidden" in text:
+        return "permission"
+    if "404" in text or "not found" in text:
+        return "model_not_found"
+    return "provider_error"
+
+
 def ai_answer(question: str, history: list[ChatMessage]):
-    """Let Gemini handle conversation; provide BIS context only when relevant."""
+    """Let Gemini handle conversation with automatic multi-model failover."""
     if not GEMINI_CLIENT:
         return (
             "The AI service is not configured on the server. Check GEMINI_API_KEY in the deployment environment.",
             [],
             "configuration",
+            None,
         )
 
-    try:
-        from google.genai import types
+    matches = search_records(question)[:8]
+    context = json.dumps(matches, ensure_ascii=False, indent=2)
+    bis_question = is_bis_question(question)
 
-        matches = search_records(question)[:8]
-        context = json.dumps(matches, ensure_ascii=False, indent=2)
-        bis_question = is_bis_question(question)
-
-        system_instruction = """
+    system_instruction = """
 You are the BIS AI Assistant for SIH26107.
 
 You are a natural conversational AI assistant. You can have normal conversations and answer general-knowledge questions naturally. Do not force every conversation to be about BIS.
@@ -174,40 +213,67 @@ Keep answers natural, concise and useful.
 For important BIS compliance or certification decisions, remind the user to verify current information with official BIS sources.
 """
 
-        context_note = context if matches else "No relevant verified BIS knowledge-base records were found for this question."
-        scope_note = "This question appears to be BIS-specific." if bis_question else "This is a general conversation question."
+    context_note = context if matches else "No relevant verified BIS knowledge-base records were found for this question."
+    scope_note = "This question appears to be BIS-specific." if bis_question else "This is a general conversation question."
 
-        prompt = (
-            f"Previous conversation:\n{_history_prompt(history)}\n\n"
-            f"Current user question:\n{question}\n\n"
-            f"Question classification:\n{scope_note}\n\n"
-            f"Verified BIS knowledge-base context:\n{context_note}\n\n"
-            "Answer the current user question directly, using conversation context where useful."
-        )
+    prompt = (
+        f"Previous conversation:\n{_history_prompt(history)}\n\n"
+        f"Current user question:\n{question}\n\n"
+        f"Question classification:\n{scope_note}\n\n"
+        f"Verified BIS knowledge-base context:\n{context_note}\n\n"
+        "Answer the current user question directly, using conversation context where useful."
+    )
 
-        response = GEMINI_CLIENT.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                max_output_tokens=500,
-                thinking_config=types.ThinkingConfig(thinking_level="minimal"),
-            ),
-        )
-
-        answer = (response.text or "").strip()
-        if answer:
-            return answer, matches, "ok"
-
-        return "I couldn't generate an answer right now. Please try again.", matches, "empty"
-
+    try:
+        from google.genai import types
     except Exception as exc:
-        print("GEMINI ERROR:", repr(exc))
-        return (
-            "The AI service returned an error while generating this response. Please check the deployment logs and Gemini API configuration.",
-            [],
-            "provider_error",
-        )
+        print("GEMINI SDK IMPORT ERROR:", repr(exc))
+        return "The AI SDK is unavailable on the server.", matches, "provider_error", None
+
+    last_error = None
+    for index, model in enumerate(GEMINI_MODELS):
+        try:
+            print(f"GEMINI ATTEMPT {index + 1}/{len(GEMINI_MODELS)} MODEL={model}")
+            response = GEMINI_CLIENT.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    max_output_tokens=500,
+                ),
+            )
+
+            answer = (response.text or "").strip()
+            if answer:
+                if index > 0:
+                    print(f"GEMINI FAILOVER SUCCESS: {model}")
+                return answer, matches, "ok", model
+
+            last_error = RuntimeError("Gemini returned an empty response")
+            print(f"GEMINI EMPTY RESPONSE MODEL={model}")
+
+        except Exception as exc:
+            last_error = exc
+            label = _error_label(exc)
+            print(f"GEMINI ERROR MODEL={model} TYPE={label}: {repr(exc)}")
+
+            # Authentication, permission, invalid-model and malformed-request errors
+            # will fail for every model with the same key, so do not waste time looping.
+            if not _is_transient_gemini_error(exc):
+                return (
+                    "The AI provider rejected the request. Please check the Gemini API key, model access, or deployment configuration.",
+                    matches,
+                    "provider_error",
+                    model,
+                )
+
+    print("GEMINI ALL MODELS FAILED:", repr(last_error))
+    return (
+        "The AI service is temporarily busy. I tried multiple Gemini models, but they are currently unavailable. Please try again in a moment.",
+        matches,
+        "provider_error",
+        None,
+    )
 
 
 @app.get("/api/health")
@@ -216,7 +282,8 @@ def health():
         "status": "online",
         "service": "BIS AI Assistant",
         "ai_configured": bool(GEMINI_CLIENT),
-        "model": GEMINI_MODEL if GEMINI_CLIENT else None,
+        "primary_model": GEMINI_MODEL if GEMINI_CLIENT else None,
+        "fallback_models": GEMINI_MODELS if GEMINI_CLIENT else [],
         "knowledge_base_records": len(DATA.get("knowledge", [])) + len(DATA.get("standards", [])),
         "demo_verification": True,
     }
@@ -252,7 +319,7 @@ def sources():
 
 @app.post("/api/ask")
 def ask(request: AskRequest):
-    answer, sources, status = ai_answer(request.question, request.history)
+    answer, sources, status, model_used = ai_answer(request.question, request.history)
     return {
         "answer": answer,
         "sources": [
@@ -266,7 +333,7 @@ def ask(request: AskRequest):
             if item.get("source_url")
         ],
         "ai_configured": bool(GEMINI_CLIENT),
-        "model": GEMINI_MODEL if GEMINI_CLIENT else None,
+        "model": model_used or (GEMINI_MODEL if GEMINI_CLIENT else None),
         "status": status,
     }
 
