@@ -27,9 +27,7 @@ function createChat() {
   };
 }
 
-function saveChats() {
-  // Deliberately empty: chat history must reset on page refresh.
-}
+function saveChats() {}
 
 function getActiveChat() {
   return chats.find((chat) => chat.id === activeChatId);
@@ -55,21 +53,16 @@ function renderHistory() {
     list.innerHTML = '<div class="empty-history">No chats in this session.<br>Start a conversation to create one.</div>';
     return;
   }
-
   const sorted = [...chats].sort((a, b) => b.updatedAt - a.updatedAt);
   list.innerHTML = sorted.map((chat) => `
     <div class="history-item ${chat.id === activeChatId ? 'selected' : ''}" data-id="${escapeHtml(chat.id)}">
       <button class="history-open" type="button">
         <span class="history-bubble">◌</span>
-        <span class="history-copy">
-          <b>${escapeHtml(chat.title)}</b>
-          <small>${formatTime(chat.updatedAt)}</small>
-        </span>
+        <span class="history-copy"><b>${escapeHtml(chat.title)}</b><small>${formatTime(chat.updatedAt)}</small></span>
       </button>
       <button class="delete-chat" type="button" title="Delete chat" aria-label="Delete chat">×</button>
     </div>
   `).join('');
-
   list.querySelectorAll('.history-item').forEach((item) => {
     const id = item.dataset.id;
     item.querySelector('.history-open').addEventListener('click', () => loadChat(id));
@@ -187,7 +180,6 @@ function renderBotMessage(box, text, sources = [], animate = false, onAnimationD
   const textNode = wrapper.querySelector('.bot-text');
   if (!animate) textNode.textContent = text;
   else activeAnimationCancel = animateText(textNode, text, onAnimationDone);
-
   if (sources.length) {
     const sourceBox = document.createElement('div');
     sourceBox.className = 'sources';
@@ -244,7 +236,6 @@ function useText(text) {
   resizeTextarea();
   $('question').focus();
 }
-
 function usePrompt(button) { useText(button.textContent); }
 function focusAssistant() {
   document.querySelector('.assistant-column').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -273,10 +264,9 @@ async function askAI(question) {
   activeTyping = typing;
   setSendingState(true);
 
-  // Send the conversation BEFORE the current user turn. The backend uses this
-  // as short-term session memory and the router uses it to understand follow-ups.
+  // Normalize UI history to the backend's ChatMessage schema.
   const history = chat.messages.map((message) => ({
-    role: message.role,
+    role: message.role === 'user' ? 'user' : 'assistant',
     content: message.text
   })).slice(-20);
 
@@ -287,15 +277,17 @@ async function askAI(question) {
       body: JSON.stringify({ question, history, off_topic_count: chat.offTopicCount || 0 }),
       signal: requestController.signal
     });
-    if (!response.ok) throw new Error('Request failed');
+    if (!response.ok) {
+      let detail = '';
+      try { detail = await response.text(); } catch {}
+      throw new Error(`Request failed (${response.status})${detail ? `: ${detail.slice(0, 180)}` : ''}`);
+    }
     const data = await response.json();
     if (sequence !== requestSequence) return;
-
     typing.remove();
     activeTyping = null;
     chat.offTopicCount = Number.isFinite(data.off_topic_count) ? data.off_topic_count : chat.offTopicCount;
     addMessageToHistory('bot', data.answer || 'No answer was returned.', data.sources || []);
-
     renderBotMessage(box, data.answer || 'No answer was returned.', data.sources || [], true, () => {
       if (sequence !== requestSequence) return;
       activeAnimationCancel = null;
@@ -306,7 +298,9 @@ async function askAI(question) {
     if (error?.name === 'AbortError' || sequence !== requestSequence) return;
     typing.remove();
     activeTyping = null;
-    const message = 'The backend is not reachable. Please check the server and try again.';
+    const message = error?.message?.startsWith('Request failed')
+      ? `Request failed: ${error.message.replace(/^Request failed \(/, '').replace(/\)$/, '')}`
+      : 'The backend is not reachable. Please check the server and try again.';
     addMessageToHistory('bot', message, []);
     renderBotMessage(box, message, [], true, () => {
       if (sequence !== requestSequence) return;
@@ -327,7 +321,6 @@ $('askForm').addEventListener('submit', async (event) => {
   if (isSending) { stopAI(); return; }
   const question = $('question').value.trim();
   if (!question) return;
-
   const box = $('chat');
   if (!getActiveChat()?.messages.length) box.innerHTML = '';
   addMessageToHistory('user', question);
@@ -357,7 +350,6 @@ async function searchStandards(queryOverride = null) {
       : '<div class="tool-empty">No matching BIS records were found. Try “electrical cables”, “IS 302”, “plugs”, or “IS 694”.</div>';
   } catch { box.innerHTML = '<div class="tool-empty">Backend unavailable.</div>'; }
 }
-
 $('standardForm').addEventListener('submit', (event) => { event.preventDefault(); searchStandards(); });
 
 async function showCertification() {
@@ -374,7 +366,6 @@ async function showCertification() {
     `).join('');
   } catch { box.innerHTML = '<div class="tool-empty">Certification guidance is temporarily unavailable.</div>'; }
 }
-
 $('certificationBtn').addEventListener('click', showCertification);
 
 async function verifyLicense(numberOverride = null) {
@@ -409,7 +400,6 @@ async function verifyLicense(numberOverride = null) {
     `;
   } catch { box.innerHTML = '<div class="tool-empty">Backend unavailable.</div>'; }
 }
-
 $('verifyForm').addEventListener('submit', (event) => { event.preventDefault(); verifyLicense(); });
 function useDemoLicense(number) { openTool('verify'); $('license').value = number; verifyLicense(number); }
 
