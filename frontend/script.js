@@ -5,6 +5,10 @@ const $ = (id) => document.getElementById(id);
 let chats = loadChats();
 let activeChatId = null;
 let isSending = false;
+let requestController = null;
+let activeTyping = null;
+let activeAnimationCancel = null;
+let requestSequence = 0;
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>\"]/g, (char) => ({
@@ -87,7 +91,44 @@ function renderHistory() {
   });
 }
 
+function stopAI() {
+  if (!isSending && !requestController && !activeTyping && !activeAnimationCancel) return;
+
+  requestSequence += 1;
+  if (requestController) requestController.abort();
+  requestController = null;
+
+  if (activeTyping) {
+    activeTyping.remove();
+    activeTyping = null;
+  }
+
+  if (activeAnimationCancel) {
+    activeAnimationCancel();
+    activeAnimationCancel = null;
+  }
+
+  isSending = false;
+  const button = $('askBtn');
+  button.disabled = false;
+  button.classList.remove('stop-btn');
+  button.textContent = '➤';
+  button.setAttribute('aria-label', 'Send question');
+  button.title = 'Send question';
+}
+
+function setSendingState(sending) {
+  isSending = sending;
+  const button = $('askBtn');
+  button.disabled = false;
+  button.classList.toggle('stop-btn', sending);
+  button.textContent = sending ? '■' : '➤';
+  button.setAttribute('aria-label', sending ? 'Stop response' : 'Send question');
+  button.title = sending ? 'Stop response' : 'Send question';
+}
+
 function newChat() {
+  stopAI();
   const chat = createChat();
   chats.unshift(chat);
   activeChatId = chat.id;
@@ -98,6 +139,7 @@ function newChat() {
 }
 
 function deleteChat(id) {
+  if (activeChatId === id) stopAI();
   chats = chats.filter((chat) => chat.id !== id);
   if (activeChatId === id) {
     activeChatId = chats[0]?.id || null;
@@ -113,6 +155,7 @@ function deleteChat(id) {
 function clearHistory() {
   if (!chats.length) return;
   if (!confirm('Delete all saved BIS chats from this browser?')) return;
+  stopAI();
   chats = [];
   activeChatId = null;
   saveChats();
@@ -121,6 +164,7 @@ function clearHistory() {
 
 function loadChat(id) {
   if (!chats.some((chat) => chat.id === id)) return;
+  stopAI();
   activeChatId = id;
   renderHistory();
   renderActiveChat();
@@ -166,7 +210,7 @@ function renderUserMessage(box, text) {
   box.appendChild(wrapper);
 }
 
-function renderBotMessage(box, text, sources = [], animate = false) {
+function renderBotMessage(box, text, sources = [], animate = false, onAnimationDone = null) {
   const wrapper = document.createElement('div');
   wrapper.className = 'message bot';
   wrapper.innerHTML = `
@@ -176,8 +220,11 @@ function renderBotMessage(box, text, sources = [], animate = false) {
   box.appendChild(wrapper);
 
   const textNode = wrapper.querySelector('.bot-text');
-  if (!animate) textNode.textContent = text;
-  else animateText(textNode, text);
+  if (!animate) {
+    textNode.textContent = text;
+  } else {
+    activeAnimationCancel = animateText(textNode, text, onAnimationDone);
+  }
 
   if (sources.length) {
     const sourceBox = document.createElement('div');
@@ -191,18 +238,34 @@ function renderBotMessage(box, text, sources = [], animate = false) {
   return wrapper;
 }
 
-function animateText(node, text) {
+function animateText(node, text, onDone = null) {
   node.textContent = '';
   let index = 0;
+  let timer = null;
+  let cancelled = false;
+
+  const finish = () => {
+    if (typeof onDone === 'function') onDone();
+  };
+
   const step = () => {
+    if (cancelled) return;
     node.textContent += text[index] || '';
     index += 1;
     if (index < text.length) {
       const delay = text[index - 1] === '\n' ? 35 : 11;
-      setTimeout(step, delay);
+      timer = setTimeout(step, delay);
+    } else {
+      finish();
     }
   };
+
   step();
+
+  return () => {
+    cancelled = true;
+    if (timer) clearTimeout(timer);
+  };
 }
 
 function addThinkingMessage(box) {
@@ -263,34 +326,62 @@ async function askAI(question) {
   const box = $('chat');
   const button = $('askBtn');
   const typing = addThinkingMessage(box);
-  button.disabled = true;
-  isSending = true;
+  const sequence = ++requestSequence;
+  requestController = new AbortController();
+  activeTyping = typing;
+  setSendingState(true);
 
   try {
     const response = await fetch(`${API}/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question })
+      body: JSON.stringify({ question }),
+      signal: requestController.signal
     });
     if (!response.ok) throw new Error('Request failed');
     const data = await response.json();
+
+    if (sequence !== requestSequence) return;
+
     typing.remove();
+    activeTyping = null;
     addMessageToHistory('bot', data.answer || 'No answer was returned.', data.sources || []);
-    renderBotMessage(box, data.answer || 'No answer was returned.', data.sources || [], true);
-  } catch {
+
+    renderBotMessage(box, data.answer || 'No answer was returned.', data.sources || [], true, () => {
+      if (sequence !== requestSequence) return;
+      activeAnimationCancel = null;
+      requestController = null;
+      setSendingState(false);
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError' || sequence !== requestSequence) return;
+
     typing.remove();
-    const message = 'The backend is not reachable. Start FastAPI with: uvicorn backend.main:app --reload';
+    activeTyping = null;
+    const message = 'The backend is not reachable. Please check the server and try again.';
     addMessageToHistory('bot', message, []);
-    renderBotMessage(box, message, [], true);
+    renderBotMessage(box, message, [], true, () => {
+      if (sequence !== requestSequence) return;
+      activeAnimationCancel = null;
+      requestController = null;
+      setSendingState(false);
+    });
   } finally {
-    button.disabled = false;
-    isSending = false;
+    if (sequence === requestSequence && !activeAnimationCancel) {
+      requestController = null;
+      setSendingState(false);
+    }
   }
 }
 
 $('askForm').addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (isSending) return;
+
+  if (isSending) {
+    stopAI();
+    return;
+  }
+
   const question = $('question').value.trim();
   if (!question) return;
 
