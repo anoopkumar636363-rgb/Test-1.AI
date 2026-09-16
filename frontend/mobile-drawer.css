@@ -1,0 +1,27 @@
+/* BIS AI Assistant — mobile history drawer */
+
+@media (max-width: 900px) {
+  .history-panel {
+    position: fixed;
+    inset: 64px auto 0 0;
+    z-index: 900;
+    width: min(80vw, 280px);
+    height: calc(100vh - 64px);
+    display: flex;
+    transform: translateX(-100%);
+    visibility: hidden;
+    opacity: 1;
+    box-shadow: 16px 0 40px #183b5b25;
+    transition: transform .22s ease, visibility 0s linear .22s;
+  }
+
+  body.history-open .history-panel {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform .22s ease, visibility 0s linear 0s;
+  }
+
+  body.history-open .history-reopen { display: none; }
+  body.history-closed .workspace { grid-template-columns: minmax(0, 1fr); }
+  .history-reopen { display: grid; top: 75px; left: 12px; }
+}
