@@ -1,0 +1,11 @@
+SIH26044 SkillBridge
+
+1. Open a terminal in the Test-1.AI folder.
+2. Create venv: python -m venv venv
+3. Activate: .\venv\Scripts\Activate.ps1
+4. Install: pip install -r backend\requirements.txt
+5. Start: uvicorn backend.main:app --reload
+6. Open: http://127.0.0.1:8000/
+7. API docs: http://127.0.0.1:8000/docs
+
+The backend serves the sih26044-demo frontend automatically.
