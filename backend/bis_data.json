@@ -1,54 +1,14 @@
 {
   "categories": [
-    "Electrical products",
-    "Electronics",
-    "Food and water",
-    "Construction",
-    "Consumer products",
-    "Testing and laboratories",
+    "Indian Standards",
+    "BIS certification",
+    "Product compliance",
+    "Testing laboratories",
     "Hallmarking",
-    "BIS certification"
+    "Consumer services"
   ],
-  "standards": [
-    {
-      "id": "DEMO-001",
-      "title": "Example standard record — replace with verified BIS data",
-      "product": "Electrical appliance",
-      "category": "Electrical products",
-      "summary": "This placeholder demonstrates how a verified Indian Standard record will be stored and retrieved.",
-      "keywords": ["electrical", "appliance", "standard", "certification"],
-      "source": "VERIFY WITH OFFICIAL BIS SOURCE"
-    },
-    {
-      "id": "DEMO-002",
-      "title": "Example certification guidance record",
-      "product": "Consumer product",
-      "category": "Consumer products",
-      "summary": "Use this record to demonstrate product-to-standard search until the production BIS dataset is connected.",
-      "keywords": ["consumer", "product", "BIS", "certification"],
-      "source": "VERIFY WITH OFFICIAL BIS SOURCE"
-    },
-    {
-      "id": "DEMO-003",
-      "title": "Example testing laboratory record",
-      "product": "Product testing",
-      "category": "Testing and laboratories",
-      "summary": "Demonstration record for laboratory and testing guidance. Live laboratory information will be connected later.",
-      "keywords": ["testing", "laboratory", "lab", "test"] ,
-      "source": "VERIFY WITH OFFICIAL BIS SOURCE"
-    }
-  ],
-  "services": [
-    {"name": "Find an applicable standard", "description": "Search standards using a product description or IS number."},
-    {"name": "BIS certification guidance", "description": "Explain the general certification journey and required next steps using verified source material."},
-    {"name": "Consumer guidance", "description": "Explain BIS marks, product compliance concepts and how to verify information."},
-    {"name": "Testing laboratory guidance", "description": "Help users locate relevant testing information once the verified laboratory dataset is connected."},
-    {"name": "Hallmarking guidance", "description": "Provide consumer-facing hallmarking information from verified BIS material."}
-  ],
-  "labs": [
-    {"name": "Demo Testing Laboratory", "city": "Bengaluru", "scope": "Prototype record — not a live BIS listing"}
-  ],
-  "demo_licenses": [
-    {"license_number": "DEMO-BIS-001", "status": "Demo active", "product": "Prototype consumer product", "note": "Illustrative record only. Not a real BIS certificate."}
-  ]
+  "standards": [],
+  "services": [],
+  "labs": [],
+  "demo_licenses": []
 }
