@@ -24,7 +24,7 @@ DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
 app = FastAPI(
     title="BIS AI Assistant API",
     description="SIH26107 prototype for Indian Standards and BIS services.",
-    version="2.2.0",
+    version="2.3.0",
 )
 
 app.add_middleware(
@@ -87,12 +87,11 @@ def quick_answer(question: str) -> Optional[str]:
 def fallback_answer(question: str):
     matches = search_records(question)[:5]
     if matches:
-        answer = "I found these relevant entries in the BIS knowledge base:\n\n"
-        answer += "\n".join(
+        answer = "\n\n".join(
             f"• {item.get('title', 'Untitled')} — {item.get('summary', '')}"
             for item in matches
         )
-        answer += "\n\nThis information is grounded in official BIS sources. Verify important compliance requirements against the latest BIS information."
+        answer += "\n\nVerify important compliance requirements against the latest BIS information."
         return answer, matches
 
     return (
@@ -133,8 +132,8 @@ Treat the supplied BIS knowledge-base context as the primary factual source.
 Use general model knowledge only for conversational wording, not for unsupported BIS-specific facts.
 Never invent an IS number, fee, deadline, licence status, certification requirement, laboratory, law or BIS policy.
 If the supplied knowledge base does not contain enough verified information, say so clearly instead of guessing.
-When a source URL is supplied, do not alter or invent it.
 Keep answers concise, practical and easy to understand.
+Do not include a separate source list, URLs, citations, or phrases such as "I found these relevant entries" in the answer; the application displays verified BIS sources separately below the answer.
 For important compliance or certification decisions, tell the user to verify current information with official BIS sources.
 """
 
