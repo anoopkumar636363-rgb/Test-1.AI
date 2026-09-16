@@ -24,7 +24,7 @@ DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
 app = FastAPI(
     title="BIS AI Assistant API",
     description="SIH26107 prototype for Indian Standards and BIS services.",
-    version="2.0.0",
+    version="2.1.0",
 )
 
 app.add_middleware(
@@ -44,14 +44,27 @@ class VerifyRequest(BaseModel):
     license_number: str = Field(min_length=2, max_length=100)
 
 
+def _record_text(item: dict) -> str:
+    return json.dumps(item, ensure_ascii=False).lower()
+
+
 def search_records(query: str):
-    """Search the local BIS knowledge base. Verified BIS data will be added later."""
+    """Search the local BIS knowledge base using simple keyword scoring."""
     terms = [term for term in re.findall(r"[a-z0-9-]+", query.lower()) if len(term) > 2]
     results = []
 
-    for item in DATA.get("standards", []):
-        text = json.dumps(item, ensure_ascii=False).lower()
-        score = sum(term in text for term in terms)
+    # Search both curated BIS knowledge and future standard records.
+    records = DATA.get("knowledge", []) + DATA.get("standards", [])
+
+    for item in records:
+        text = _record_text(item)
+        score = 0
+        for term in terms:
+            if term in text:
+                score += 1
+                # Give explicit keyword matches a small boost.
+                if term in [str(k).lower() for k in item.get("keywords", [])]:
+                    score += 2
         if score:
             results.append((score, item))
 
@@ -82,17 +95,18 @@ def fallback_answer(question: str):
     matches = search_records(question)[:5]
 
     if matches:
-        answer = "I found these entries in the local BIS knowledge base:\n\n"
+        answer = "I found these relevant entries in the BIS knowledge base:\n\n"
         answer += "\n".join(
             f"• {item.get('title', 'Untitled')} — {item.get('summary', '')}"
             for item in matches
         )
-        answer += "\n\nThis knowledge base is currently a prototype. Verify important requirements with official BIS information."
+        answer += "\n\nThis information is grounded in the official BIS sources listed below. Verify important requirements against the latest BIS information before making a compliance decision."
         return answer, matches
 
     return (
-        "I don't have verified BIS records connected yet. The BIS knowledge base will be added to this prototype next. "
-        "For important certification or compliance decisions, use current information from official BIS sources.",
+        "I don't have enough verified BIS information in the connected knowledge base to answer that safely. "
+        "Try asking about BIS standards, certification, testing laboratories, or BIS services. "
+        "For important certification or compliance decisions, verify current information with official BIS sources.",
         [],
     )
 
@@ -125,14 +139,16 @@ def ai_answer(question: str):
 You are the BIS AI Assistant for SIH26107.
 
 Help users understand Indian Standards, BIS certification, testing, hallmarking and BIS services.
-Use the supplied knowledge-base context when it contains relevant information.
+Treat the supplied BIS knowledge-base context as the primary factual source.
+Use general model knowledge only for harmless conversational wording, not for unsupported BIS-specific facts.
 Never invent an IS number, fee, deadline, licence status, certification requirement, laboratory, law or BIS policy.
-If the knowledge base does not contain enough verified information, say so clearly.
+If the supplied knowledge base does not contain enough verified information, say so clearly instead of guessing.
+When a source URL is supplied, do not alter or invent the URL.
 Keep answers concise, practical and easy to understand.
 For important compliance or certification decisions, tell the user to verify current information with official BIS sources.
 """
 
-        prompt = f"User question:\n{question}\n\nKnowledge-base context:\n{context or 'No BIS records are connected yet.'}\n\nAnswer the user directly."
+        prompt = f"User question:\n{question}\n\nVerified BIS knowledge-base context:\n{context or 'No matching verified BIS records were found.'}\n\nAnswer the user directly."
 
         response = GEMINI_CLIENT.models.generate_content(
             model=GEMINI_MODEL,
@@ -154,7 +170,7 @@ For important compliance or certification decisions, tell the user to verify cur
     except Exception as exc:
         print("GEMINI ERROR:", repr(exc))
         answer, matches = fallback_answer(question)
-        return answer + "\n\nGemini could not be reached, so the local response was used.", matches
+        return answer + "\n\nGemini could not be reached, so the local grounded response was used.", matches
 
 
 @app.get("/api/health")
@@ -164,7 +180,7 @@ def health():
         "service": "BIS AI Assistant",
         "ai_configured": bool(GEMINI_CLIENT),
         "model": GEMINI_MODEL if GEMINI_CLIENT else None,
-        "knowledge_base_records": len(DATA.get("standards", [])),
+        "knowledge_base_records": len(DATA.get("knowledge", [])) + len(DATA.get("standards", [])),
     }
 
 
@@ -178,12 +194,34 @@ def standards(q: Optional[str] = Query(default=None, max_length=200)):
     return search_records(q) if q else DATA.get("standards", [])
 
 
+@app.get("/api/sources")
+def sources():
+    return [
+        {
+            "id": item.get("id"),
+            "title": item.get("title"),
+            "source": item.get("source"),
+            "source_url": item.get("source_url"),
+        }
+        for item in DATA.get("knowledge", [])
+    ]
+
+
 @app.post("/api/ask")
 def ask(request: AskRequest):
     answer, sources = ai_answer(request.question)
     return {
         "answer": answer,
-        "sources": sources,
+        "sources": [
+            {
+                "id": item.get("id"),
+                "title": item.get("title"),
+                "source": item.get("source"),
+                "source_url": item.get("source_url"),
+            }
+            for item in sources
+            if item.get("source_url")
+        ],
         "ai_configured": bool(GEMINI_CLIENT),
         "model": GEMINI_MODEL if GEMINI_CLIENT else None,
     }
