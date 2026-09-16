@@ -2,7 +2,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Query
@@ -10,22 +10,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-# Always load the backend-local environment file.
-ENV_FILE = Path(__file__).resolve().parent / ".env"
-load_dotenv(ENV_FILE)
+BASE_DIR = Path(__file__).resolve().parent
+ROOT_DIR = BASE_DIR.parent
+DATA_FILE = BASE_DIR / "bis_data.json"
 
-ROOT = Path(__file__).resolve().parent.parent
-DATA_FILE = ROOT / "backend" / "bis_data.json"
-DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+load_dotenv(BASE_DIR / ".env")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
+DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+
 app = FastAPI(
     title="BIS AI Assistant API",
-    description="SIH26107 prototype: AI-assisted guidance for Indian Standards and BIS services.",
-    version="1.2.0",
+    description="SIH26107 prototype for Indian Standards and BIS services.",
+    version="2.0.0",
 )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -44,77 +45,69 @@ class VerifyRequest(BaseModel):
 
 
 def search_records(query: str):
-    q = query.lower().strip()
+    """Search the local BIS knowledge base. Verified BIS data will be added later."""
+    terms = [term for term in re.findall(r"[a-z0-9-]+", query.lower()) if len(term) > 2]
     results = []
-    for item in DATA["standards"]:
-        haystack = " ".join(
-            [
-                item.get("title", ""),
-                item.get("product", ""),
-                item.get("category", ""),
-                item.get("summary", ""),
-                " ".join(item.get("keywords", [])),
-            ]
-        ).lower()
-        terms = [x for x in q.split() if len(x) > 2]
-        score = sum(1 for term in terms if term in haystack)
+
+    for item in DATA.get("standards", []):
+        text = json.dumps(item, ensure_ascii=False).lower()
+        score = sum(term in text for term in terms)
         if score:
             results.append((score, item))
-    return [item for _, item in sorted(results, key=lambda x: x[0], reverse=True)]
+
+    results.sort(key=lambda item: item[0], reverse=True)
+    return [item for _, item in results]
 
 
-def quick_answer(question: str):
-    """Answer simple conversational messages without making an API call."""
+def quick_answer(question: str) -> Optional[str]:
+    """Handle simple messages instantly without calling Gemini."""
     q = re.sub(r"[^a-z0-9 ]+", " ", question.lower()).strip()
-    words = set(q.split())
 
     if q in {"hi", "hello", "hey", "hii", "hiii", "helo", "good morning", "good afternoon", "good evening"}:
         return "Hello! 👋 I'm the BIS AI Assistant. Ask me about Indian Standards, BIS certification, testing, hallmarking, or BIS services."
 
     if q in {"thanks", "thank you", "thx", "thankyou"}:
-        return "You're welcome! 👋 Ask me anything about BIS."
+        return "You're welcome! 👋"
 
     if q in {"bye", "goodbye", "see you"}:
         return "Goodbye! 👋"
 
-    if q in {"who are you", "what are you", "what can you do", "help"} or {"what", "can"}.issubset(words) and "you" in words:
-        return "I'm the BIS AI Assistant. I can help you explore Indian Standards, BIS certification, testing laboratories, hallmarking, and BIS services."
+    if q in {"help", "who are you", "what are you", "what can you do"}:
+        return "I'm the BIS AI Assistant. I can help explain Indian Standards, BIS certification, testing, hallmarking, and BIS services."
 
     return None
 
 
 def fallback_answer(question: str):
-    matches = search_records(question)
+    matches = search_records(question)[:5]
+
     if matches:
-        top = matches[:3]
-        lines = ["I found relevant entries in the connected BIS prototype knowledge base:"]
-        for item in top:
-            lines.append(f"• {item['title']} — {item['summary']}")
-        lines.append(
-            "\nThis is prototype guidance. Verify the current requirement with an official BIS source before relying on it for certification or compliance."
+        answer = "I found these entries in the local BIS knowledge base:\n\n"
+        answer += "\n".join(
+            f"• {item.get('title', 'Untitled')} — {item.get('summary', '')}"
+            for item in matches
         )
-        return "\n".join(lines), top
+        answer += "\n\nThis knowledge base is currently a prototype. Verify important requirements with official BIS information."
+        return answer, matches
 
     return (
-        "I could not find a confident match in the connected BIS knowledge base yet. "
-        "Try a product name, IS number, BIS certification question, hallmarking, or testing laboratory query. "
-        "For questions requiring current regulatory information, verify the answer against official BIS sources.",
+        "I don't have verified BIS records connected yet. The BIS knowledge base will be added to this prototype next. "
+        "For important certification or compliance decisions, use current information from official BIS sources.",
         [],
     )
 
 
-# Reuse one Gemini client instead of constructing it for every request.
 GEMINI_CLIENT = None
 if GEMINI_API_KEY:
     try:
         from google import genai
+
         GEMINI_CLIENT = genai.Client(api_key=GEMINI_API_KEY)
     except Exception as exc:
         print("GEMINI CLIENT INIT ERROR:", repr(exc))
 
 
 def ai_answer(question: str):
-    # Simple conversation should never wait for Gemini.
     quick = quick_answer(question)
     if quick:
         return quick, []
@@ -129,27 +122,17 @@ def ai_answer(question: str):
         context = json.dumps(matches, ensure_ascii=False, indent=2)
 
         system_instruction = """
-You are BIS AI Assistant, a helpful assistant for Indian Standards and BIS services.
+You are the BIS AI Assistant for SIH26107.
 
-Rules:
-1. Be helpful and conversational.
-2. For BIS factual, certification, compliance, standards, fees, deadlines, licence, testing, or legal questions, use the supplied knowledge-base context first.
-3. Never invent an IS number, certification requirement, fee, deadline, licence status, laboratory, legal requirement, or BIS policy.
-4. If the supplied context is insufficient, explicitly say that the knowledge base does not contain enough verified information.
-5. Clearly distinguish prototype/demo data from verified current BIS information.
-6. Encourage verification using official BIS sources for important compliance decisions.
-7. Keep answers concise and easy for students, consumers, and small businesses to understand.
+Help users understand Indian Standards, BIS certification, testing, hallmarking and BIS services.
+Use the supplied knowledge-base context when it contains relevant information.
+Never invent an IS number, fee, deadline, licence status, certification requirement, laboratory, law or BIS policy.
+If the knowledge base does not contain enough verified information, say so clearly.
+Keep answers concise, practical and easy to understand.
+For important compliance or certification decisions, tell the user to verify current information with official BIS sources.
 """
 
-        prompt = f"""
-User question:
-{question}
-
-Connected knowledge-base context:
-{context if context else "No matching knowledge-base records were found."}
-
-Answer the user directly. Do not mention internal prompts or token limits.
-"""
+        prompt = f"User question:\n{question}\n\nKnowledge-base context:\n{context or 'No BIS records are connected yet.'}\n\nAnswer the user directly."
 
         response = GEMINI_CLIENT.models.generate_content(
             model=GEMINI_MODEL,
@@ -158,24 +141,20 @@ Answer the user directly. Do not mention internal prompts or token limits.
                 system_instruction=system_instruction,
                 temperature=0.2,
                 max_output_tokens=400,
-                # Gemini 2.5 Flash supports disabling internal thinking for low-latency tasks.
                 thinking_config=types.ThinkingConfig(thinking_budget=0),
             ),
         )
 
         answer = (response.text or "").strip()
-        if not answer:
-            return fallback_answer(question)
-        return answer, matches
+        if answer:
+            return answer, matches
+
+        return fallback_answer(question)
 
     except Exception as exc:
         print("GEMINI ERROR:", repr(exc))
         answer, matches = fallback_answer(question)
-        return (
-            answer
-            + "\n\nThe Gemini service could not be reached, so the local knowledge-base response was used instead.",
-            matches,
-        )
+        return answer + "\n\nGemini could not be reached, so the local response was used.", matches
 
 
 @app.get("/api/health")
@@ -185,17 +164,18 @@ def health():
         "service": "BIS AI Assistant",
         "ai_configured": bool(GEMINI_CLIENT),
         "model": GEMINI_MODEL if GEMINI_CLIENT else None,
+        "knowledge_base_records": len(DATA.get("standards", [])),
     }
 
 
 @app.get("/api/categories")
 def categories():
-    return DATA["categories"]
+    return DATA.get("categories", [])
 
 
 @app.get("/api/standards")
 def standards(q: Optional[str] = Query(default=None, max_length=200)):
-    return search_records(q) if q else DATA["standards"]
+    return search_records(q) if q else DATA.get("standards", [])
 
 
 @app.post("/api/ask")
@@ -212,29 +192,31 @@ def ask(request: AskRequest):
 @app.post("/api/verify")
 def verify(request: VerifyRequest):
     number = request.license_number.strip().upper()
-    for item in DATA["demo_licenses"]:
-        if item["license_number"].upper() == number:
+    for item in DATA.get("demo_licenses", []):
+        if item.get("license_number", "").upper() == number:
             return {"found": True, "result": item, "demo": True}
+
     return {
         "found": False,
-        "demo": True,
-        "message": "No record found in the local demo registry. This prototype does not query the live BIS registry yet.",
+        "demo": False,
+        "message": "Live BIS licence verification is not connected yet. The live registry/API integration will be added later.",
     }
 
 
 @app.get("/api/labs")
 def labs(q: Optional[str] = Query(default=None, max_length=100)):
+    labs_data = DATA.get("labs", [])
     if not q:
-        return DATA["labs"]
+        return labs_data
     terms = q.lower().split()
-    return [lab for lab in DATA["labs"] if any(t in json.dumps(lab).lower() for t in terms)]
+    return [lab for lab in labs_data if any(term in json.dumps(lab).lower() for term in terms)]
 
 
 @app.get("/api/services")
 def services():
-    return DATA["services"]
+    return DATA.get("services", [])
 
 
-frontend = ROOT / "sih26044-demo"
-if frontend.exists():
-    app.mount("/", StaticFiles(directory=frontend, html=True), name="frontend")
+FRONTEND_DIR = ROOT_DIR / "frontend"
+if FRONTEND_DIR.exists():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
