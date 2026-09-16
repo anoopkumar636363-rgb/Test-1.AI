@@ -1,75 +1,131 @@
-from fastapi import FastAPI, HTTPException
+import json
+import os
+from pathlib import Path
+from typing import List, Optional
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from pathlib import Path
-from typing import List
 
-app = FastAPI(title="SkillBridge API", version="0.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+load_dotenv()
 
-SKILLS = ["python", "javascript", "react", "html/css", "git", "fastapi", "sql", "communication", "problem solving"]
+ROOT = Path(__file__).resolve().parent.parent
+DATA_FILE = ROOT / "backend" / "bis_data.json"
+DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
 
-OPPORTUNITIES = [
-    {"id": 1, "title": "Frontend Developer Intern", "company": "TechNova Labs", "location": "Bengaluru", "skills": ["javascript", "react", "html/css", "git"], "type": "Internship"},
-    {"id": 2, "title": "Python Backend Intern", "company": "Alpha Systems", "location": "Remote", "skills": ["python", "fastapi", "sql", "git"], "type": "Internship"},
-    {"id": 3, "title": "Software Engineering Intern", "company": "Orbit Technologies", "location": "Hyderabad", "skills": ["python", "javascript", "git", "problem solving"], "type": "Internship"},
-    {"id": 4, "title": "Junior Full Stack Developer", "company": "BuildWorks", "location": "Pune", "skills": ["javascript", "react", "python", "sql", "git"], "type": "Job"},
-]
+app = FastAPI(
+    title="BIS AI Assistant API",
+    description="SIH26107 prototype: AI-assisted guidance for Indian Standards and BIS services.",
+    version="1.0.0",
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-class Student(BaseModel):
-    name: str = "Demo Student"
-    college: str = "Demo Engineering College"
-    branch: str = "Computer Science"
-    year: int = Field(default=3, ge=1, le=5)
-    skills: List[str] = []
+class AskRequest(BaseModel):
+    question: str = Field(min_length=2, max_length=2000)
 
-class CompanyRole(BaseModel):
-    title: str
-    company: str
-    skills: List[str]
-    location: str = "Remote"
+class VerifyRequest(BaseModel):
+    license_number: str = Field(min_length=2, max_length=100)
 
-def normalize(items):
-    return {x.strip().lower() for x in items if x.strip()}
 
-def match_score(student_skills, required):
-    have, need = normalize(student_skills), normalize(required)
-    return round(len(have & need) / max(len(need), 1) * 100)
+def search_records(query: str):
+    q = query.lower().strip()
+    results = []
+    for item in DATA["standards"]:
+        haystack = " ".join([
+            item.get("title", ""), item.get("product", ""), item.get("category", ""),
+            item.get("summary", ""), " ".join(item.get("keywords", []))
+        ]).lower()
+        terms = [x for x in q.split() if len(x) > 2]
+        score = sum(1 for term in terms if term in haystack)
+        if score:
+            results.append((score, item))
+    return [item for _, item in sorted(results, key=lambda x: x[0], reverse=True)]
+
+
+def fallback_answer(question: str):
+    matches = search_records(question)
+    if matches:
+        top = matches[:3]
+        lines = ["I found relevant entries in the prototype knowledge base:"]
+        for item in top:
+            lines.append(f"• {item['title']} — {item['summary']}")
+        lines.append("\nThis is guidance from the demo dataset. Verify the current requirement on the official BIS source before relying on it for certification or compliance.")
+        return "\n".join(lines), top
+    return (
+        "I could not find a confident match in the current demo knowledge base. "
+        "Try the product name, an IS number, 'BIS certification', 'hallmarking', or 'testing laboratory'. "
+        "For a production system, we will connect a verified BIS corpus and retrieval pipeline here.", []
+    )
+
+
+def ai_answer(question: str):
+    api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        return fallback_answer(question)
+    try:
+        from google import genai
+        client = genai.Client(api_key=api_key)
+        matches = search_records(question)[:5]
+        context = json.dumps(matches, ensure_ascii=False)
+        prompt = f"""You are a BIS information assistant prototype. Answer only from the supplied context. Do not invent Indian Standard numbers, certification rules, fees, deadlines, license validity, or legal requirements. If the context is insufficient, say so. Clearly label the answer as guidance and tell the user to verify current requirements with BIS.\n\nQuestion: {question}\n\nVerified demo context:\n{context}"""
+        response = client.models.generate_content(
+            model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+            contents=prompt,
+        )
+        return response.text, matches
+    except Exception as exc:
+        answer, matches = fallback_answer(question)
+        return answer + f"\n\nAI service fallback active ({type(exc).__name__}).", matches
+
 
 @app.get("/api/health")
 def health():
-    return {"status": "online", "service": "SkillBridge API"}
+    return {"status": "online", "service": "BIS AI Assistant", "ai_configured": bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))}
 
-@app.get("/api/skills")
-def skills():
-    return {"skills": SKILLS}
+@app.get("/api/categories")
+def categories():
+    return DATA["categories"]
 
-@app.get("/api/opportunities")
-def opportunities():
-    return OPPORTUNITIES
+@app.get("/api/standards")
+def standards(q: Optional[str] = Query(default=None, max_length=200)):
+    return search_records(q) if q else DATA["standards"]
 
-@app.post("/api/match")
-def match(student: Student):
-    results = []
-    have = normalize(student.skills)
-    for item in OPPORTUNITIES:
-        need = normalize(item["skills"])
-        matched = sorted(have & need)
-        missing = sorted(need - have)
-        results.append({**item, "match": match_score(student.skills, item["skills"]), "matched_skills": matched, "missing_skills": missing})
-    results.sort(key=lambda x: x["match"], reverse=True)
-    readiness = round(sum(min(len(have & normalize(x["skills"])), 3) for x in OPPORTUNITIES) / max(len(OPPORTUNITIES) * 3, 1) * 100)
-    return {"student": student, "readiness": readiness, "matches": results}
+@app.post("/api/ask")
+def ask(request: AskRequest):
+    answer, sources = ai_answer(request.question)
+    return {"answer": answer, "sources": sources, "ai_configured": bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))}
 
-@app.post("/api/roles")
-def add_role(role: CompanyRole):
-    new_id = max([x["id"] for x in OPPORTUNITIES], default=0) + 1
-    item = {"id": new_id, **role.model_dump(), "type": "Industry Opportunity"}
-    OPPORTUNITIES.append(item)
-    return item
+@app.post("/api/verify")
+def verify(request: VerifyRequest):
+    number = request.license_number.strip().upper()
+    for item in DATA["demo_licenses"]:
+        if item["license_number"].upper() == number:
+            return {"found": True, "result": item, "demo": True}
+    return {
+        "found": False,
+        "demo": True,
+        "message": "No record found in the local demo registry. This prototype does not query the live BIS registry yet."
+    }
 
-# Serve the frontend when the backend is started from the project root.
-frontend = Path(__file__).resolve().parent.parent / "sih26044-demo"
+@app.get("/api/labs")
+def labs(q: Optional[str] = Query(default=None, max_length=100)):
+    if not q:
+        return DATA["labs"]
+    terms = q.lower().split()
+    return [lab for lab in DATA["labs"] if any(t in json.dumps(lab).lower() for t in terms)]
+
+@app.get("/api/services")
+def services():
+    return DATA["services"]
+
+frontend = ROOT / "sih26044-demo"
 if frontend.exists():
     app.mount("/", StaticFiles(directory=frontend, html=True), name="frontend")
