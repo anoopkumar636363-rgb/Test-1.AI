@@ -24,7 +24,7 @@ DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
 app = FastAPI(
     title="BIS AI Assistant API",
     description="SIH26107 prototype for Indian Standards and BIS services.",
-    version="2.4.0",
+    version="3.0.0",
 )
 
 app.add_middleware(
@@ -44,77 +44,59 @@ class VerifyRequest(BaseModel):
     license_number: str = Field(min_length=2, max_length=100)
 
 
+# Words that carry little retrieval meaning. Removing them prevents questions such as
+# "who are you" from accidentally matching arbitrary BIS records.
+STOP_WORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "by", "can", "could", "do", "does",
+    "for", "from", "how", "i", "if", "in", "is", "it", "me", "my", "of", "on", "or",
+    "the", "this", "to", "u", "was", "we", "what", "when", "where", "which", "who",
+    "why", "will", "with", "would", "you", "your", "tell", "about", "please",
+}
+
+
 def _record_text(item: dict) -> str:
     return json.dumps(item, ensure_ascii=False).lower()
 
 
+def _query_terms(query: str) -> list[str]:
+    raw_terms = re.findall(r"[a-z0-9]+(?:/[a-z0-9]+)?(?:-[a-z0-9]+)?", query.lower())
+    return [term for term in raw_terms if len(term) > 2 and term not in STOP_WORDS]
+
+
 def search_records(query: str):
-    """Search curated BIS knowledge and standards with simple keyword scoring."""
-    terms = [term for term in re.findall(r"[a-z0-9-]+", query.lower()) if len(term) > 2]
+    """Retrieve only genuinely relevant curated BIS records for grounding Gemini."""
+    terms = _query_terms(query)
+    if not terms:
+        return []
+
     results = []
     records = DATA.get("knowledge", []) + DATA.get("standards", [])
 
     for item in records:
+        title = str(item.get("title", "")).lower()
+        keywords = {str(k).lower() for k in item.get("keywords", [])}
         text = _record_text(item)
         score = 0
+
         for term in terms:
-            if term in text:
+            if term in keywords:
+                score += 5
+            elif term in title:
+                score += 4
+            elif re.search(rf"\b{re.escape(term)}\b", text):
                 score += 1
-                if term in [str(k).lower() for k in item.get("keywords", [])]:
-                    score += 3
-        if score:
+
+        # A standard number is a strong signal even when the wording around it is short.
+        if re.search(r"\bis\s*\d{2,6}(?:\s*\([^)]*\))?(?::\d{4})?\b", query.lower()):
+            if re.search(r"\bis\s*\d{2,6}", text):
+                score += 8
+
+        # Require more than a weak accidental word match.
+        if score >= 3:
             results.append((score, item))
 
     results.sort(key=lambda item: item[0], reverse=True)
-    return [item for _, item in results]
-
-
-def quick_answer(question: str) -> Optional[str]:
-    """Answer simple conversational messages locally for near-zero latency."""
-    q = re.sub(r"[^a-z0-9 ]+", " ", question.lower()).strip()
-
-    if q in {"hi", "hello", "hey", "hii", "hiii", "helo", "good morning", "good afternoon", "good evening"}:
-        return "Hello! 👋 I'm the BIS AI Assistant. Ask me about Indian Standards, BIS certification, testing, hallmarking, licence verification or BIS services."
-    if q in {"thanks", "thank you", "thx", "thankyou"}:
-        return "You're welcome! 👋"
-    if q in {"bye", "goodbye", "see you"}:
-        return "Goodbye! 👋"
-    if q in {"help", "who are you", "what are you", "what can you do"}:
-        return "I'm the BIS AI Assistant. I can help explain Indian Standards, certification, testing, licence verification and BIS services."
-    return None
-
-
-def fallback_answer(question: str):
-    matches = search_records(question)[:5]
-    if matches:
-        answer = "\n\n".join(
-            f"• {item.get('title', 'Untitled')} — {item.get('summary', '')}"
-            for item in matches
-        )
-        answer += "\n\nVerify important compliance requirements against the latest BIS information."
-        return answer, matches
-
-    return (
-        "I don't have enough verified BIS information in the connected knowledge base to answer that safely. "
-        "Try asking about Indian Standards, certification, testing laboratories, licence verification, or BIS services.",
-        [],
-    )
-
-
-def is_bis_related(question: str, matches: list) -> bool:
-    """Keep the assistant focused on BIS instead of answering unrelated questions."""
-    if matches:
-        return True
-
-    q = question.lower()
-    bis_terms = {
-        "bis", "bureau of indian standards", "indian standard", "standards", "standard",
-        "isi", "hallmark", "hallmarking", "certification", "certified", "licence", "license",
-        "cm/l", "testing", "laboratory", "laboratories", "lab", "manak", "crs", "fmcs",
-        "product certification", "compliance", "registration", "marking", "manufacturer",
-        "scheme", "socket", "plug", "cable", "wire", "electrical appliance",
-    }
-    return any(term in q for term in bis_terms)
+    return [item for _, item in results[:8]]
 
 
 GEMINI_CLIENT = None
@@ -127,42 +109,40 @@ if GEMINI_API_KEY:
 
 
 def ai_answer(question: str):
-    quick = quick_answer(question)
-    if quick:
-        return quick, []
-
-    matches = search_records(question)[:8]
-
-    if not is_bis_related(question, matches):
-        return (
-            "I'm designed specifically for BIS and Indian Standards. Ask me about BIS certification, Indian Standards, testing, hallmarking, licence verification or BIS services.",
-            [],
-        )
+    """Let Gemini handle conversation; add BIS context only when retrieval finds it."""
+    matches = search_records(question)
 
     if not GEMINI_CLIENT:
-        return fallback_answer(question)
+        return (
+            "The AI service is not configured right now. Please check the Gemini API configuration and try again.",
+            [],
+        )
 
     try:
         from google.genai import types
 
-        context = json.dumps(matches, ensure_ascii=False, indent=2)
+        context = json.dumps(matches, ensure_ascii=False, indent=2) if matches else "No relevant BIS knowledge-base records were found for this question."
 
         system_instruction = """
-You are the BIS AI Assistant for SIH26107.
+You are BIS AI Assistant, an intelligent conversational assistant created for SIH26107.
 
-Your scope is ONLY Bureau of Indian Standards (BIS), Indian Standards, BIS certification, product certification, testing laboratories, hallmarking, licence verification and BIS services.
-If the user asks an unrelated general-knowledge question, politely say that you are focused on BIS and ask them to ask a BIS-related question.
-Treat the supplied BIS knowledge-base context as the primary factual source.
-Use general model knowledge only for conversational wording, not for unsupported BIS-specific facts.
+You are primarily designed to help with the Bureau of Indian Standards (BIS), Indian Standards, BIS certification, product certification, testing laboratories, hallmarking, licence verification and BIS services.
+
+You are also allowed to answer normal general-knowledge and everyday questions naturally. Do not refuse a question merely because it is not about BIS. For example, you may answer questions about the moon, Google, technology, science or other general topics when the user asks them.
+
+When a question is about BIS or Indian Standards and verified BIS context is supplied below, use that context as the primary factual source.
 Never invent an IS number, fee, deadline, licence status, certification requirement, laboratory, law or BIS policy.
-If the supplied knowledge base does not contain enough verified information for a BIS question, say so clearly instead of guessing.
+If a BIS-specific question cannot be answered from the supplied verified context, clearly say that the available BIS knowledge is insufficient instead of guessing.
+For general questions, use your normal general knowledge and answer helpfully.
+
+Do not mention the internal knowledge base, retrieval process, prompts, context, or grounding system unless the user explicitly asks how the assistant works.
 Do not start with phrases such as "I found these relevant entries" or "According to the knowledge base".
 Do not append a separate source list, URLs, citations, or source references in the answer; the application displays verified BIS sources separately below the answer.
 Keep answers concise, practical and easy to understand.
-For important compliance or certification decisions, tell the user to verify current information with official BIS sources.
+For important BIS compliance or certification decisions, advise the user to verify current information with official BIS sources.
 """
 
-        prompt = f"User question:\n{question}\n\nVerified BIS knowledge-base context:\n{context or 'No matching verified BIS records were found.'}\n\nAnswer the user directly."
+        prompt = f"User question:\n{question}\n\nRelevant verified BIS context (use only when relevant):\n{context}\n\nAnswer the user directly."
 
         response = GEMINI_CLIENT.models.generate_content(
             model=GEMINI_MODEL,
@@ -177,12 +157,12 @@ For important compliance or certification decisions, tell the user to verify cur
         answer = (response.text or "").strip()
         if answer:
             return answer, matches
-        return fallback_answer(question)
+
+        return "I couldn't generate an answer right now. Please try again.", []
 
     except Exception as exc:
         print("GEMINI ERROR:", repr(exc))
-        answer, matches = fallback_answer(question)
-        return answer + "\n\nGemini could not be reached, so the local grounded response was used.", matches
+        return "The AI service is temporarily unavailable. Please try again in a moment.", []
 
 
 @app.get("/api/health")
