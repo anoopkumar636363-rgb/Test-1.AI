@@ -73,6 +73,10 @@ function renderHistory() {
   });
 }
 
+function setMobileHistory(open) {
+  document.body.classList.toggle('history-open', open);
+}
+
 function stopAI() {
   if (!isSending && !requestController && !activeTyping && !activeAnimationCancel) return;
   requestSequence += 1;
@@ -106,6 +110,7 @@ function newChat() {
   activeChatId = chat.id;
   renderHistory();
   renderActiveChat();
+  setMobileHistory(false);
   $('question').focus();
 }
 
@@ -132,6 +137,7 @@ function loadChat(id) {
   activeChatId = id;
   renderHistory();
   renderActiveChat();
+  setMobileHistory(false);
 }
 
 function renderActiveChat() {
@@ -264,7 +270,6 @@ async function askAI(question) {
   activeTyping = typing;
   setSendingState(true);
 
-  // Normalize UI history to the backend's ChatMessage schema.
   const history = chat.messages.map((message) => ({
     role: message.role === 'user' ? 'user' : 'assistant',
     content: message.text
@@ -402,6 +407,9 @@ async function verifyLicense(numberOverride = null) {
 }
 $('verifyForm').addEventListener('submit', (event) => { event.preventDefault(); verifyLicense(); });
 function useDemoLicense(number) { openTool('verify'); $('license').value = number; verifyLicense(number); }
+
+$('closeHistory').addEventListener('click', () => setMobileHistory(false));
+$('openHistory').addEventListener('click', () => setMobileHistory(true));
 
 function resizeTextarea() {
   const textarea = $('question');
