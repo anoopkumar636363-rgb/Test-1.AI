@@ -7,7 +7,7 @@
   <title>BIS AI Assistant — SIH26107</title>
   <link rel="stylesheet" href="style.css?v=20260917-final">
   <link rel="stylesheet" href="mobile-drawer.css?v=20260917-1">
-  <link rel="stylesheet" href="final-fixed-layout.css?v=20260917-1">
+  <link rel="stylesheet" href="final-fixed-layout.css?v=20260917-2">
 </head>
 <body>
   <header class="topbar">
@@ -112,8 +112,9 @@
       document.getElementById('question').addEventListener('keydown', (event) => {
         if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); document.getElementById('askForm').requestSubmit(); }
       });
-      document.querySelectorAll('.main-nav .nav-link').forEach((link) => link.addEventListener('click', () => {
+      document.querySelectorAll('.main-nav .nav-link').forEach((link) => link.addEventListener('click', (event) => {
         document.querySelectorAll('.main-nav .nav-link').forEach((item) => item.classList.remove('active')); link.classList.add('active');
+        if (window.innerWidth > 900) event.preventDefault();
       }));
     })();
   </script>
