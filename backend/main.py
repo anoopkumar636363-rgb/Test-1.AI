@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from pathlib import Path
 from typing import List, Optional
 
@@ -9,19 +10,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-load_dotenv()
+# Always load the backend-local environment file.
+ENV_FILE = Path(__file__).resolve().parent / ".env"
+load_dotenv(ENV_FILE)
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_FILE = ROOT / "backend" / "bis_data.json"
 DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 app = FastAPI(
     title="BIS AI Assistant API",
     description="SIH26107 prototype: AI-assisted guidance for Indian Standards and BIS services.",
-    version="1.1.0",
+    version="1.2.0",
 )
 app.add_middleware(
     CORSMiddleware,
@@ -60,6 +63,26 @@ def search_records(query: str):
     return [item for _, item in sorted(results, key=lambda x: x[0], reverse=True)]
 
 
+def quick_answer(question: str):
+    """Answer simple conversational messages without making an API call."""
+    q = re.sub(r"[^a-z0-9 ]+", " ", question.lower()).strip()
+    words = set(q.split())
+
+    if q in {"hi", "hello", "hey", "hii", "hiii", "helo", "good morning", "good afternoon", "good evening"}:
+        return "Hello! 👋 I'm the BIS AI Assistant. Ask me about Indian Standards, BIS certification, testing, hallmarking, or BIS services."
+
+    if q in {"thanks", "thank you", "thx", "thankyou"}:
+        return "You're welcome! 👋 Ask me anything about BIS."
+
+    if q in {"bye", "goodbye", "see you"}:
+        return "Goodbye! 👋"
+
+    if q in {"who are you", "what are you", "what can you do", "help"} or {"what", "can"}.issubset(words) and "you" in words:
+        return "I'm the BIS AI Assistant. I can help you explore Indian Standards, BIS certification, testing laboratories, hallmarking, and BIS services."
+
+    return None
+
+
 def fallback_answer(question: str):
     matches = search_records(question)
     if matches:
@@ -80,15 +103,28 @@ def fallback_answer(question: str):
     )
 
 
+# Reuse one Gemini client instead of constructing it for every request.
+GEMINI_CLIENT = None
+if GEMINI_API_KEY:
+    try:
+        from google import genai
+        GEMINI_CLIENT = genai.Client(api_key=GEMINI_API_KEY)
+    except Exception as exc:
+        print("GEMINI CLIENT INIT ERROR:", repr(exc))
+
+
 def ai_answer(question: str):
-    if not GEMINI_API_KEY:
+    # Simple conversation should never wait for Gemini.
+    quick = quick_answer(question)
+    if quick:
+        return quick, []
+
+    if not GEMINI_CLIENT:
         return fallback_answer(question)
 
     try:
-        from google import genai
         from google.genai import types
 
-        client = genai.Client(api_key=GEMINI_API_KEY)
         matches = search_records(question)[:8]
         context = json.dumps(matches, ensure_ascii=False, indent=2)
 
@@ -96,12 +132,12 @@ def ai_answer(question: str):
 You are BIS AI Assistant, a helpful assistant for Indian Standards and BIS services.
 
 Rules:
-1. Be helpful and conversational for greetings and general navigation questions.
+1. Be helpful and conversational.
 2. For BIS factual, certification, compliance, standards, fees, deadlines, licence, testing, or legal questions, use the supplied knowledge-base context first.
 3. Never invent an IS number, certification requirement, fee, deadline, licence status, laboratory, legal requirement, or BIS policy.
 4. If the supplied context is insufficient, explicitly say that the knowledge base does not contain enough verified information.
 5. Clearly distinguish prototype/demo data from verified current BIS information.
-6. Encourage the user to verify important compliance decisions using the official BIS source.
+6. Encourage verification using official BIS sources for important compliance decisions.
 7. Keep answers concise and easy for students, consumers, and small businesses to understand.
 """
 
@@ -112,16 +148,18 @@ User question:
 Connected knowledge-base context:
 {context if context else "No matching knowledge-base records were found."}
 
-Answer the user directly. If this is a simple greeting, respond naturally. If it is a BIS factual question and the context is insufficient, say so rather than guessing.
+Answer the user directly. Do not mention internal prompts or token limits.
 """
 
-        response = client.models.generate_content(
+        response = GEMINI_CLIENT.models.generate_content(
             model=GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
                 temperature=0.2,
-                max_output_tokens=800,
+                max_output_tokens=400,
+                # Gemini 2.5 Flash supports disabling internal thinking for low-latency tasks.
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
             ),
         )
 
@@ -130,7 +168,8 @@ Answer the user directly. If this is a simple greeting, respond naturally. If it
             return fallback_answer(question)
         return answer, matches
 
-    except Exception:
+    except Exception as exc:
+        print("GEMINI ERROR:", repr(exc))
         answer, matches = fallback_answer(question)
         return (
             answer
@@ -144,8 +183,8 @@ def health():
     return {
         "status": "online",
         "service": "BIS AI Assistant",
-        "ai_configured": bool(GEMINI_API_KEY),
-        "model": GEMINI_MODEL if GEMINI_API_KEY else None,
+        "ai_configured": bool(GEMINI_CLIENT),
+        "model": GEMINI_MODEL if GEMINI_CLIENT else None,
     }
 
 
@@ -165,8 +204,8 @@ def ask(request: AskRequest):
     return {
         "answer": answer,
         "sources": sources,
-        "ai_configured": bool(GEMINI_API_KEY),
-        "model": GEMINI_MODEL if GEMINI_API_KEY else None,
+        "ai_configured": bool(GEMINI_CLIENT),
+        "model": GEMINI_MODEL if GEMINI_CLIENT else None,
     }
 
 
