@@ -1,272 +1,182 @@
-/* Desktop-only layout override. Mobile styling is intentionally disabled for this PC build. */
+/* =========================================================
+   BIS AI ASSISTANT — DESKTOP LAYOUT
+   This file intentionally replaces the previous desktop rules.
+   The reopen button is NEVER a grid item.
+   ========================================================= */
 
-html, body {
-  width: 100%;
-  min-width: 100%;
-  margin: 0;
-  overflow-x: hidden;
-}
-
-.topbar {
-  height: 72px !important;
-  min-height: 72px !important;
-  width: 100% !important;
-  padding: 0 34px !important;
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 100 !important;
-  display: flex !important;
-  align-items: center !important;
-}
-
-.topbar nav {
-  display: flex !important;
-  height: 100% !important;
-  align-items: center !important;
-  gap: 27px !important;
-}
-
-.workspace {
-  display: grid !important;
-  grid-template-columns: 300px minmax(0, 1fr) 390px !important;
-  width: 100% !important;
-  max-width: none !important;
-  height: calc(100vh - 72px) !important;
-  min-height: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-  transition: grid-template-columns .34s cubic-bezier(.22,.61,.36,1) !important;
-}
-
-.history-panel {
-  display: flex !important;
-  position: relative !important;
-  width: auto !important;
-  min-width: 0 !important;
-  height: auto !important;
-  padding: 27px 18px !important;
-  overflow: hidden !important;
-  opacity: 1;
-  transform: translateX(0);
-  transition: opacity .20s ease, transform .34s cubic-bezier(.22,.61,.36,1), padding .34s ease !important;
-  z-index: 2;
-}
-
-.assistant-column {
-  min-width: 0 !important;
-  width: auto !important;
-  height: auto !important;
-  padding: 48px 42px 30px !important;
-  overflow: hidden !important;
-}
-
-.tools-column {
-  display: block !important;
-  position: relative !important;
-  width: auto !important;
-  min-width: 0 !important;
-  height: auto !important;
-  padding: 27px 20px 45px !important;
-  overflow-y: auto !important;
-  border-left: 1px solid #e2e8f0 !important;
-  border-top: 0 !important;
-}
-
-.tools-close {
-  display: none !important;
-}
-
-/* The reopen control is a floating UI element, never a grid item. */
-.history-reopen {
-  display: none !important;
-  position: fixed !important;
-  left: 16px !important;
-  top: 88px !important;
-  width: 42px !important;
-  height: 42px !important;
-  z-index: 9999 !important;
-  place-items: center !important;
-  border: 1px solid #dce4ee !important;
-  border-radius: 10px !important;
-  background: #fff !important;
-  color: #1c579c !important;
-  box-shadow: 0 6px 18px #00000018 !important;
-  font-size: 20px !important;
-  cursor: pointer !important;
-}
-
-body.history-closed .workspace {
-  grid-template-columns: 0 minmax(0, 1fr) 390px !important;
-}
-
-body.history-closed .history-panel {
-  opacity: 0;
-  transform: translateX(-100%);
-  pointer-events: none;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  border-right-color: transparent !important;
-}
-
-body.history-closed .history-reopen {
-  display: grid !important;
-  position: fixed !important;
-  left: 16px !important;
-  top: 88px !important;
-  width: 42px !important;
-  height: 42px !important;
-  z-index: 9999 !important;
-  place-items: center !important;
-  border: 1px solid #dce4ee !important;
-  border-radius: 10px !important;
-  background: #fff !important;
-  color: #1c579c !important;
-  box-shadow: 0 6px 18px #00000018 !important;
-  font-size: 20px !important;
-  cursor: pointer !important;
-  opacity: 1 !important;
-  animation: historyButtonIn .25s ease both !important;
-}
-
-body.history-closed .history-reopen:hover {
-  transform: translateX(2px);
-  box-shadow: 0 8px 22px #00000024;
-}
-
-@keyframes historyButtonIn {
-  from { opacity: 0; transform: translateX(-10px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-body:not(.history-closed) .history-reopen {
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
-
-body:not(.history-closed) .history-panel {
-  animation: historyPanelIn .34s cubic-bezier(.22,.61,.36,1) both;
-}
-
-@keyframes historyPanelIn {
-  from { opacity: 0; transform: translateX(-100%); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-/* Keep the desktop proportions when the browser viewport is narrower. */
-@media (max-width: 1150px) {
-  .workspace {
-    grid-template-columns: 280px minmax(0, 1fr) 350px !important;
-  }
-  .assistant-column {
-    padding-left: 28px !important;
-    padding-right: 28px !important;
-  }
-  .topbar {
-    padding-left: 20px !important;
-    padding-right: 20px !important;
-  }
-  .topbar nav {
-    gap: 10px !important;
-  }
-}
-
-/* Desktop layout remains authoritative even on touch-capable laptops. */
 @media (min-width: 901px) {
-  html, body {
-    width: auto;
+  html,
+  body {
+    width: 100%;
+    min-width: 0;
     max-width: none;
-    overflow-x: visible;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
   }
 
+  /* ---------- Header ---------- */
   .topbar {
-    height: 72px;
-    min-height: 72px;
-    width: auto;
-    padding: 0 34px;
-    gap: 28px;
-    position: sticky;
-    top: 0;
-    display: flex;
-    align-items: center;
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    width: 100% !important;
+    height: 72px !important;
+    min-height: 72px !important;
+    box-sizing: border-box !important;
+    padding: 0 34px !important;
+    display: flex !important;
+    align-items: center !important;
+    z-index: 50 !important;
   }
 
   .topbar nav {
-    display: flex;
+    display: flex !important;
+    align-items: center !important;
+    height: 100% !important;
+    gap: 27px !important;
   }
 
-  .mobile-history-btn,
-  .mobile-tools-btn {
-    display: none !important;
-  }
-
+  /* ---------- Main 3-column layout ---------- */
   .workspace {
+    position: relative !important;
     display: grid !important;
-    grid-template-columns: 300px minmax(430px, 1fr) 390px !important;
-    width: auto;
-    max-width: 1550px;
-    height: calc(100vh - 72px);
-    min-height: 0;
-    overflow: hidden;
-    margin: 0 auto;
+    grid-template-columns: 300px minmax(0, 1fr) 390px !important;
+    grid-template-areas: "history assistant tools" !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: calc(100vh - 72px) !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    transition: grid-template-columns .28s ease !important;
   }
 
   .history-panel {
-    position: static !important;
+    grid-area: history !important;
+    position: relative !important;
     display: flex !important;
     width: auto !important;
+    min-width: 0 !important;
     height: auto !important;
-    top: auto !important;
-    bottom: auto !important;
-    left: auto !important;
-    right: auto !important;
-    overflow-y: auto;
+    min-height: 0 !important;
+    box-sizing: border-box !important;
+    padding: 27px 18px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    opacity: 1 !important;
+    transform: translateX(0) !important;
+    pointer-events: auto !important;
+    border-right: 1px solid #e2e8f0 !important;
+    transition: opacity .2s ease, transform .28s ease, padding .28s ease !important;
   }
 
   .assistant-column {
-    width: auto;
-    min-height: 0;
-    overflow: hidden;
+    grid-area: assistant !important;
+    position: relative !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    box-sizing: border-box !important;
+    padding: 48px 42px 30px !important;
+    overflow: hidden !important;
   }
 
   .tools-column {
-    position: static !important;
-    display: block !important;
+    grid-area: tools !important;
+    position: relative !important;
     width: auto !important;
+    min-width: 0 !important;
     height: auto !important;
-    overflow-y: auto;
-    border-left: 1px solid #e2e8f0;
-    border-top: 0;
+    min-height: 0 !important;
+    box-sizing: border-box !important;
+    padding: 27px 20px 45px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    border-left: 1px solid #e2e8f0 !important;
+    border-top: 0 !important;
   }
 
-  .tools-close {
-    display: none !important;
-  }
-
-  /* Explicitly keep the reopen button fixed so it can never create a grid column. */
+  /* ---------- Reopen button ---------- */
+  /* It is a fixed floating control, so it can NEVER create a grid column. */
   .history-reopen {
+    display: none !important;
     position: fixed !important;
+    left: 16px !important;
+    top: 88px !important;
+    width: 42px !important;
+    height: 42px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 99999 !important;
+    place-items: center !important;
+    border: 1px solid #dce4ee !important;
+    border-radius: 10px !important;
+    background: #fff !important;
+    color: #1c579c !important;
+    box-shadow: 0 6px 18px #00000018 !important;
+    font-size: 20px !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
   }
 
-  .workspace {
-    transition: grid-template-columns .28s ease;
-  }
-
-  body.history-closed .workspace {
-    grid-template-columns: 0 minmax(430px, 1fr) 390px !important;
-  }
-
-  body.history-closed .history-panel {
-    display: flex !important;
-    opacity: 0;
-    transform: translateX(-18px);
-    pointer-events: none;
-    padding-left: 0;
-    padding-right: 0;
-    border-right-color: transparent;
+  .history-reopen:hover {
+    transform: translateX(2px) !important;
+    box-shadow: 0 8px 22px #00000024 !important;
   }
 
   body.history-closed .history-reopen {
     display: grid !important;
+  }
+
+  /* ---------- Closed history ---------- */
+  body.history-closed .workspace {
+    grid-template-columns: 0 minmax(0, 1fr) 390px !important;
+    grid-template-areas: "history assistant tools" !important;
+  }
+
+  body.history-closed .history-panel {
+    opacity: 0 !important;
+    transform: translateX(-24px) !important;
+    pointer-events: none !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    border-right-color: transparent !important;
+  }
+
+  body.history-closed .history-reopen {
+    display: grid !important;
+  }
+
+  /* Never let the floating button affect the grid. */
+  .workspace > .history-reopen {
     position: fixed !important;
+  }
+
+  /* ---------- Narrow desktop/laptop ---------- */
+  @media (max-width: 1200px) {
+    .workspace {
+      grid-template-columns: 270px minmax(0, 1fr) 340px !important;
+    }
+
+    body.history-closed .workspace {
+      grid-template-columns: 0 minmax(0, 1fr) 340px !important;
+    }
+
+    .assistant-column {
+      padding-left: 28px !important;
+      padding-right: 28px !important;
+    }
+
+    .topbar {
+      padding-left: 20px !important;
+      padding-right: 20px !important;
+    }
+
+    .topbar nav {
+      gap: 10px !important;
+    }
   }
 }
