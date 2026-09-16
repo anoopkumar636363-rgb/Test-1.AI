@@ -1,45 +1,20 @@
-const modal = document.getElementById('modal');
-const title = document.getElementById('modalTitle');
-const text = document.getElementById('modalText');
+const API = '/api';
+const $ = (id) => document.getElementById(id);
 
-function openModal(t, body) {
-  title.textContent = t;
-  text.textContent = body;
-  modal.classList.remove('hidden');
-}
+function escapeHtml(value){return String(value).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));}
+function addMessage(role, html){const box=$('chat');const el=document.createElement('div');el.className=`message ${role}`;el.innerHTML=role==='bot'?`<b>BIS AI</b><p>${html}</p>`:`<p>${escapeHtml(html)}</p>`;box.appendChild(el);box.scrollTop=box.scrollHeight;return el;}
+function useText(text){$('question').value=text;focusAssistant();}
+function usePrompt(button){useText(button.textContent);}
+function focusAssistant(){document.querySelector('#assistant').scrollIntoView({behavior:'smooth'});setTimeout(()=>$('question').focus(),400);}
 
-document.getElementById('closeModal').onclick = () => modal.classList.add('hidden');
-modal.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden'); };
+async function health(){try{const r=await fetch(`${API}/health`);const d=await r.json();$('apiBadge').textContent=d.ai_configured?'● AI connected':'● API online · demo AI';}catch{$('apiBadge').textContent='● Offline demo';}}
 
-document.getElementById('assessmentBtn').onclick = () => openModal(
-  'Skill Assessment',
-  'Sample flow: answer 10 technical and soft-skill questions. The backend will calculate your verified skill profile and compare it with industry requirements.'
-);
+$('askForm').addEventListener('submit',async(e)=>{e.preventDefault();const q=$('question').value.trim();if(!q)return;addMessage('user',q);$('question').value='';const btn=$('askBtn');btn.disabled=true;btn.textContent='Thinking…';const typing=addMessage('bot','Searching the knowledge base…');try{const r=await fetch(`${API}/ask`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})});const d=await r.json();typing.remove();let answer=escapeHtml(d.answer).replace(/\n/g,'<br>');if(d.sources?.length){answer+=`<br><br><span class="source">${d.sources.length} knowledge-base result(s)</span>`;}addMessage('bot',answer);}catch{typing.remove();addMessage('bot','The backend is not reachable. Start FastAPI with <b>uvicorn backend.main:app --reload</b>.');}finally{btn.disabled=false;btn.textContent='Ask AI';}});
 
-document.getElementById('portfolioBtn').onclick = () => openModal(
-  'Digital Portfolio',
-  'Sample portfolio: skills, projects, certificates, internships and achievements in one verified student profile.'
-);
+async function searchStandards(){const q=$('standardSearch').value.trim();const box=$('standardResults');box.innerHTML='<p class="muted">Searching…</p>';try{const r=await fetch(`${API}/standards${q?`?q=${encodeURIComponent(q)}`:''}`);const data=await r.json();box.innerHTML=data.length?data.map(x=>`<article class="result"><span class="id">${escapeHtml(x.id)}</span><h3>${escapeHtml(x.title)}</h3><p><b>${escapeHtml(x.product)}</b> · ${escapeHtml(x.category)}</p><p>${escapeHtml(x.summary)}</p><span class="source">${escapeHtml(x.source)}</span></article>`).join(''):'<p class="muted">No matching demo records. Try a broader product keyword.</p>';}catch{box.innerHTML='<p class="muted">Backend unavailable.</p>';}}
+$('standardSearch').addEventListener('keydown',e=>{if(e.key==='Enter')searchStandards();});
 
-document.getElementById('roadmapBtn').onclick = () => openModal(
-  'Your Learning Roadmap',
-  'Based on this sample profile: learn React fundamentals → build one project → complete a REST API project → take the React skill verification test.'
-);
+$('verifyForm').addEventListener('submit',async(e)=>{e.preventDefault();const number=$('license').value.trim();const box=$('verifyResult');box.textContent='Checking…';try{const r=await fetch(`${API}/verify`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({license_number:number})});const d=await r.json();box.innerHTML=d.found?`<b>Demo record found</b><br>${escapeHtml(d.result.product)} · ${escapeHtml(d.result.status)}<br><small>${escapeHtml(d.result.note)}</small>`:`<b>No demo record found.</b><br>${escapeHtml(d.message)}`;}catch{box.textContent='Backend unavailable.';}});
 
-document.querySelectorAll('.apply').forEach(button => {
-  button.onclick = () => openModal(
-    button.dataset.role,
-    'Demo application flow opened. In the real version, this will create an application record and let the student track its status.'
-  );
-});
-
-document.querySelectorAll('.nav-btn').forEach(button => {
-  button.onclick = () => {
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    button.classList.add('active');
-    const role = button.dataset.view;
-    if (role === 'student') openModal('Student Portal', 'Student dashboard: skill assessment, skill gaps, portfolio, internships and placement applications.');
-    if (role === 'industry') openModal('Industry Portal', 'Industry dashboard: create an opportunity, define required skills, and shortlist students by explainable skill match.');
-    if (role === 'institution') openModal('Institution Portal', 'Institution dashboard: monitor student skill readiness, internship participation, placement progress and industry skill demand.');
-  };
-});
+$('standardSearch').value='electrical';
+health();searchStandards();
