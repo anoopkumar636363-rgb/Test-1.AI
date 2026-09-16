@@ -6,7 +6,6 @@
   <title>BIS AI Assistant — SIH26107</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="theme.css" />
-  <link rel="stylesheet" href="mobile.css" />
   <style>
     /* PC ONLY: Chat History collapses smoothly and the assistant expands. */
     @media (min-width: 901px) {
@@ -41,7 +40,6 @@
 </head>
 <body>
   <header class="topbar">
-    <button id="mobileHistoryBtn" class="mobile-history-btn" type="button" aria-label="Open chat history" title="Chat history">☰</button>
     <a class="brand" href="#assistant" aria-label="BIS AI Assistant home">
       <span class="brand-mark">BIS</span>
       <span><b>BIS AI Assistant</b><small>Indian Standards & Services</small></span>
@@ -52,7 +50,6 @@
       <a class="nav-link" href="#certification">Certification</a>
       <a class="nav-link" href="#verify">Verify</a>
     </nav>
-    <button id="mobileToolsBtn" class="mobile-tools-btn" type="button" aria-label="Open BIS tools" title="BIS tools">⌕</button>
     <button id="themeToggle" class="theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch theme">☾</button>
     <span id="apiBadge" class="badge">● Connecting</span>
   </header>
@@ -105,7 +102,6 @@
           <h2>Quick Tools</h2>
           <p>Common BIS services at your fingertips</p>
         </div>
-        <button id="closeTools" class="icon-btn tools-close" type="button" aria-label="Close BIS tools">×</button>
       </div>
 
       <section id="standards" class="tool-card standard-tool">
@@ -181,16 +177,6 @@
         localStorage.setItem(key, dark ? 'dark' : 'light');
         apply(dark);
       });
-      window.setMobileTools = (open) => {
-        document.body.classList.toggle('tools-open', open);
-        if (open) document.body.classList.remove('history-open');
-      };
-      document.getElementById('mobileHistoryBtn')?.addEventListener('click', () => {
-        document.body.classList.remove('tools-open');
-        setMobileHistory(true);
-      });
-      document.getElementById('mobileToolsBtn')?.addEventListener('click', () => setMobileTools(true));
-      document.getElementById('closeTools')?.addEventListener('click', () => setMobileTools(false));
     })();
   </script>
 </body>
