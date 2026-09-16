@@ -6,36 +6,10 @@
   <title>BIS AI Assistant — SIH26107</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="theme.css" />
+  <link rel="stylesheet" href="desktop.css" />
   <style>
-    /* PC ONLY: Chat History collapses smoothly and the assistant expands. */
-    @media (min-width: 901px) {
-      .workspace { transition: grid-template-columns .28s ease; }
-      .history-panel { transition: width .28s ease, opacity .22s ease, transform .28s ease; overflow: hidden; }
-      .history-reopen { display: none; }
-      body.history-closed .workspace { grid-template-columns: 0 minmax(0, 1fr) 390px !important; }
-      body.history-closed .history-panel { width: 0 !important; min-width: 0 !important; opacity: 0; transform: translateX(-20px); pointer-events: none; }
-      body.history-closed .history-reopen {
-        display: grid;
-        position: fixed;
-        left: 12px;
-        top: 82px;
-        width: 40px;
-        height: 40px;
-        z-index: 250;
-        place-items: center;
-        border: 1px solid #dce4ee;
-        border-radius: 10px;
-        background: #fff;
-        color: #1c579c;
-        box-shadow: 0 6px 18px #00000018;
-        font-size: 20px;
-        cursor: pointer;
-        animation: historyReopen .28s ease both;
-      }
-      body.history-closed .history-reopen:hover { transform: translateX(2px); box-shadow: 0 8px 22px #00000024; }
-      html.dark-mode body.history-closed .history-reopen { background: #172331; border-color: #304256; color: #8fc4fa; }
-    }
-    @keyframes historyReopen { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+    /* PC history controls */
+    .history-reopen { display:none; }
   </style>
 </head>
 <body>
@@ -70,7 +44,7 @@
 
     <button id="historyToggle" class="history-reopen" type="button" aria-label="Open chat history" title="Open chat history">☰</button>
 
-    <section class="assistant-column">
+    <section class="assistant-column" id="assistant">
       <div class="assistant-heading">
         <div>
           <p class="eyebrow">INTELLIGENT ASSISTANT</p>
@@ -161,22 +135,31 @@
   <script>
     (() => {
       const key = 'bis-theme';
-      const button = document.getElementById('themeToggle');
-      const apply = (dark) => {
+      const themeButton = document.getElementById('themeToggle');
+      const applyTheme = (dark) => {
         document.documentElement.classList.toggle('dark-mode', dark);
-        if (button) {
-          button.textContent = dark ? '☀' : '☾';
-          button.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
-          button.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+        if (themeButton) {
+          themeButton.textContent = dark ? '☀' : '☾';
+          themeButton.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+          themeButton.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
         }
       };
       let dark = localStorage.getItem(key) === 'dark';
-      apply(dark);
-      button?.addEventListener('click', () => {
+      applyTheme(dark);
+      themeButton?.addEventListener('click', () => {
         dark = !dark;
         localStorage.setItem(key, dark ? 'dark' : 'light');
-        apply(dark);
+        applyTheme(dark);
       });
+
+      // PC-only history drawer. Mobile behavior is intentionally not included here.
+      const closeHistory = document.getElementById('closeHistory');
+      const historyToggle = document.getElementById('historyToggle');
+      const setHistoryClosed = (closed) => {
+        document.body.classList.toggle('history-closed', closed);
+      };
+      closeHistory?.addEventListener('click', () => setHistoryClosed(true));
+      historyToggle?.addEventListener('click', () => setHistoryClosed(false));
     })();
   </script>
 </body>
