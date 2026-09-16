@@ -1,8 +1,9 @@
 const API = '/api';
-const HISTORY_KEY = 'bis_ai_chat_history_v1';
 const $ = (id) => document.getElementById(id);
 
-let chats = loadChats();
+// Chat state intentionally lives only in memory.
+// A refresh/new browser session starts a fresh BIS AI conversation.
+let chats = [];
 let activeChatId = null;
 let isSending = false;
 let requestController = null;
@@ -12,10 +13,7 @@ let requestSequence = 0;
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>\"]/g, (char) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '\"': '&quot;'
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;'
   })[char]);
 }
 
@@ -24,21 +22,13 @@ function createChat() {
     id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     title: 'New BIS chat',
     updatedAt: Date.now(),
+    offTopicCount: 0,
     messages: []
   };
 }
 
-function loadChats() {
-  try {
-    const stored = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-    return Array.isArray(stored) ? stored : [];
-  } catch {
-    return [];
-  }
-}
-
 function saveChats() {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(chats));
+  // Deliberately empty: chat history must reset on page refresh.
 }
 
 function getActiveChat() {
@@ -51,7 +41,6 @@ function ensureActiveChat() {
     chat = createChat();
     chats.unshift(chat);
     activeChatId = chat.id;
-    saveChats();
   }
   return chat;
 }
@@ -63,7 +52,7 @@ function formatTime(timestamp) {
 function renderHistory() {
   const list = $('historyList');
   if (!chats.length) {
-    list.innerHTML = '<div class="empty-history">No saved chats yet.<br>Start a conversation to create one.</div>';
+    list.innerHTML = '<div class="empty-history">No chats in this session.<br>Start a conversation to create one.</div>';
     return;
   }
 
@@ -93,21 +82,11 @@ function renderHistory() {
 
 function stopAI() {
   if (!isSending && !requestController && !activeTyping && !activeAnimationCancel) return;
-
   requestSequence += 1;
   if (requestController) requestController.abort();
   requestController = null;
-
-  if (activeTyping) {
-    activeTyping.remove();
-    activeTyping = null;
-  }
-
-  if (activeAnimationCancel) {
-    activeAnimationCancel();
-    activeAnimationCancel = null;
-  }
-
+  if (activeTyping) { activeTyping.remove(); activeTyping = null; }
+  if (activeAnimationCancel) { activeAnimationCancel(); activeAnimationCancel = null; }
   isSending = false;
   const button = $('askBtn');
   button.disabled = false;
@@ -132,7 +111,6 @@ function newChat() {
   const chat = createChat();
   chats.unshift(chat);
   activeChatId = chat.id;
-  saveChats();
   renderHistory();
   renderActiveChat();
   $('question').focus();
@@ -141,24 +119,17 @@ function newChat() {
 function deleteChat(id) {
   if (activeChatId === id) stopAI();
   chats = chats.filter((chat) => chat.id !== id);
-  if (activeChatId === id) {
-    activeChatId = chats[0]?.id || null;
-  }
-  saveChats();
+  if (activeChatId === id) activeChatId = chats[0]?.id || null;
   if (!activeChatId) newChat();
-  else {
-    renderHistory();
-    renderActiveChat();
-  }
+  else { renderHistory(); renderActiveChat(); }
 }
 
 function clearHistory() {
   if (!chats.length) return;
-  if (!confirm('Delete all saved BIS chats from this browser?')) return;
+  if (!confirm('Clear all chats from this session?')) return;
   stopAI();
   chats = [];
   activeChatId = null;
-  saveChats();
   newChat();
 }
 
@@ -174,12 +145,7 @@ function renderActiveChat() {
   const box = $('chat');
   const chat = ensureActiveChat();
   box.innerHTML = '';
-
-  if (!chat.messages.length) {
-    addWelcomeMessage(box);
-    return;
-  }
-
+  if (!chat.messages.length) { addWelcomeMessage(box); return; }
   chat.messages.forEach((message) => {
     if (message.role === 'user') renderUserMessage(box, message.text);
     else renderBotMessage(box, message.text, message.sources || [], false);
@@ -218,13 +184,9 @@ function renderBotMessage(box, text, sources = [], animate = false, onAnimationD
     <p class="bot-text"></p>
   `;
   box.appendChild(wrapper);
-
   const textNode = wrapper.querySelector('.bot-text');
-  if (!animate) {
-    textNode.textContent = text;
-  } else {
-    activeAnimationCancel = animateText(textNode, text, onAnimationDone);
-  }
+  if (!animate) textNode.textContent = text;
+  else activeAnimationCancel = animateText(textNode, text, onAnimationDone);
 
   if (sources.length) {
     const sourceBox = document.createElement('div');
@@ -243,11 +205,7 @@ function animateText(node, text, onDone = null) {
   let index = 0;
   let timer = null;
   let cancelled = false;
-
-  const finish = () => {
-    if (typeof onDone === 'function') onDone();
-  };
-
+  const finish = () => { if (typeof onDone === 'function') onDone(); };
   const step = () => {
     if (cancelled) return;
     node.textContent += text[index] || '';
@@ -255,17 +213,10 @@ function animateText(node, text, onDone = null) {
     if (index < text.length) {
       const delay = text[index - 1] === '\n' ? 35 : 11;
       timer = setTimeout(step, delay);
-    } else {
-      finish();
-    }
+    } else finish();
   };
-
   step();
-
-  return () => {
-    cancelled = true;
-    if (timer) clearTimeout(timer);
-  };
+  return () => { cancelled = true; if (timer) clearTimeout(timer); };
 }
 
 function addThinkingMessage(box) {
@@ -283,11 +234,8 @@ function addThinkingMessage(box) {
 function addMessageToHistory(role, text, sources = []) {
   const chat = ensureActiveChat();
   chat.messages.push({ role, text, sources, createdAt: Date.now() });
-  if (role === 'user' && chat.title === 'New BIS chat') {
-    chat.title = text.length > 32 ? `${text.slice(0, 32)}…` : text;
-  }
+  if (role === 'user' && chat.title === 'New BIS chat') chat.title = text.length > 32 ? `${text.slice(0, 32)}…` : text;
   chat.updatedAt = Date.now();
-  saveChats();
   renderHistory();
 }
 
@@ -297,18 +245,12 @@ function useText(text) {
   $('question').focus();
 }
 
-function usePrompt(button) {
-  useText(button.textContent);
-}
-
+function usePrompt(button) { useText(button.textContent); }
 function focusAssistant() {
   document.querySelector('.assistant-column').scrollIntoView({ behavior: 'smooth', block: 'start' });
   setTimeout(() => $('question').focus(), 350);
 }
-
-function openTool(id) {
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
+function openTool(id) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
 
 async function health() {
   try {
@@ -324,27 +266,34 @@ async function health() {
 
 async function askAI(question) {
   const box = $('chat');
-  const button = $('askBtn');
+  const chat = ensureActiveChat();
   const typing = addThinkingMessage(box);
   const sequence = ++requestSequence;
   requestController = new AbortController();
   activeTyping = typing;
   setSendingState(true);
 
+  // Send the conversation BEFORE the current user turn. The backend uses this
+  // as short-term session memory and the router uses it to understand follow-ups.
+  const history = chat.messages.map((message) => ({
+    role: message.role,
+    content: message.text
+  })).slice(-20);
+
   try {
     const response = await fetch(`${API}/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ question, history, off_topic_count: chat.offTopicCount || 0 }),
       signal: requestController.signal
     });
     if (!response.ok) throw new Error('Request failed');
     const data = await response.json();
-
     if (sequence !== requestSequence) return;
 
     typing.remove();
     activeTyping = null;
+    chat.offTopicCount = Number.isFinite(data.off_topic_count) ? data.off_topic_count : chat.offTopicCount;
     addMessageToHistory('bot', data.answer || 'No answer was returned.', data.sources || []);
 
     renderBotMessage(box, data.answer || 'No answer was returned.', data.sources || [], true, () => {
@@ -355,7 +304,6 @@ async function askAI(question) {
     });
   } catch (error) {
     if (error?.name === 'AbortError' || sequence !== requestSequence) return;
-
     typing.remove();
     activeTyping = null;
     const message = 'The backend is not reachable. Please check the server and try again.';
@@ -376,12 +324,7 @@ async function askAI(question) {
 
 $('askForm').addEventListener('submit', async (event) => {
   event.preventDefault();
-
-  if (isSending) {
-    stopAI();
-    return;
-  }
-
+  if (isSending) { stopAI(); return; }
   const question = $('question').value.trim();
   if (!question) return;
 
@@ -398,7 +341,6 @@ async function searchStandards(queryOverride = null) {
   const query = queryOverride ?? $('standardSearch').value.trim();
   const box = $('standardResults');
   box.innerHTML = '<div class="tool-loading">Searching BIS records…</div>';
-
   try {
     const response = await fetch(`${API}/standards${query ? `?q=${encodeURIComponent(query)}` : ''}`);
     const data = await response.json();
@@ -413,15 +355,10 @@ async function searchStandards(queryOverride = null) {
         </article>
       `).join('')
       : '<div class="tool-empty">No matching BIS records were found. Try “electrical cables”, “IS 302”, “plugs”, or “IS 694”.</div>';
-  } catch {
-    box.innerHTML = '<div class="tool-empty">Backend unavailable.</div>';
-  }
+  } catch { box.innerHTML = '<div class="tool-empty">Backend unavailable.</div>'; }
 }
 
-$('standardForm').addEventListener('submit', (event) => {
-  event.preventDefault();
-  searchStandards();
-});
+$('standardForm').addEventListener('submit', (event) => { event.preventDefault(); searchStandards(); });
 
 async function showCertification() {
   const box = $('certificationResults');
@@ -435,9 +372,7 @@ async function showCertification() {
         <div><b>${escapeHtml(item.title)}</b><p>${escapeHtml(item.summary)}</p><a href="${escapeHtml(item.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.source)} ↗</a></div>
       </article>
     `).join('');
-  } catch {
-    box.innerHTML = '<div class="tool-empty">Certification guidance is temporarily unavailable.</div>';
-  }
+  } catch { box.innerHTML = '<div class="tool-empty">Certification guidance is temporarily unavailable.</div>'; }
 }
 
 $('certificationBtn').addEventListener('click', showCertification);
@@ -448,15 +383,12 @@ async function verifyLicense(numberOverride = null) {
   $('license').value = number;
   const box = $('verifyResult');
   box.innerHTML = '<div class="tool-loading">Checking demo registry…</div>';
-
   try {
     const response = await fetch(`${API}/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ license_number: number })
     });
     const data = await response.json();
-
     if (data.found && data.demo) {
       const item = data.result;
       box.innerHTML = `
@@ -471,26 +403,15 @@ async function verifyLicense(numberOverride = null) {
       `;
       return;
     }
-
     box.innerHTML = `
       <div class="verify-info"><strong>Live lookup not connected</strong><p>${escapeHtml(data.message)}</p>
       <a href="${escapeHtml(data.official_url || 'https://www.bis.gov.in/bis-apps/?lang=en')}" target="_blank" rel="noopener noreferrer">Open official BIS verification information ↗</a></div>
     `;
-  } catch {
-    box.innerHTML = '<div class="tool-empty">Backend unavailable.</div>';
-  }
+  } catch { box.innerHTML = '<div class="tool-empty">Backend unavailable.</div>'; }
 }
 
-$('verifyForm').addEventListener('submit', (event) => {
-  event.preventDefault();
-  verifyLicense();
-});
-
-function useDemoLicense(number) {
-  openTool('verify');
-  $('license').value = number;
-  verifyLicense(number);
-}
+$('verifyForm').addEventListener('submit', (event) => { event.preventDefault(); verifyLicense(); });
+function useDemoLicense(number) { openTool('verify'); $('license').value = number; verifyLicense(number); }
 
 function resizeTextarea() {
   const textarea = $('question');
@@ -498,33 +419,9 @@ function resizeTextarea() {
   textarea.style.height = `${Math.min(textarea.scrollHeight, 140)}px`;
 }
 
-$('question').addEventListener('input', resizeTextarea);
-$('question').addEventListener('keydown', (event) => {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault();
-    $('askForm').requestSubmit();
-  }
-});
-
-$('newChatBtn').addEventListener('click', newChat);
-$('clearHistoryBtn').addEventListener('click', clearHistory);
-$('closeHistory').addEventListener('click', () => document.body.classList.add('history-closed'));
-$('openHistory').addEventListener('click', () => document.body.classList.remove('history-closed'));
-
-window.addEventListener('hashchange', () => {
-  document.querySelectorAll('.nav-link').forEach((link) => link.classList.toggle('active', link.getAttribute('href') === window.location.hash));
-});
-
-function init() {
-  if (!activeChatId && chats.length) activeChatId = chats.sort((a, b) => b.updatedAt - a.updatedAt)[0].id;
-  if (!activeChatId) newChat();
-  else {
-    renderHistory();
-    renderActiveChat();
-  }
-  health();
-  searchStandards();
-  resizeTextarea();
-}
-
-init();
+health();
+renderHistory();
+ensureActiveChat();
+renderHistory();
+renderActiveChat();
+resizeTextarea();
