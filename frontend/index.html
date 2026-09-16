@@ -18,6 +18,7 @@
       <a class="nav-link" href="#certification">Certification</a>
       <a class="nav-link" href="#verify">Verify</a>
     </nav>
+    <button id="themeToggle" class="theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch theme">☾</button>
     <span id="apiBadge" class="badge">● Connecting</span>
   </header>
 
@@ -122,5 +123,26 @@
   </footer>
 
   <script src="script.js"></script>
+  <script>
+    (() => {
+      const key = 'bis-theme';
+      const button = document.getElementById('themeToggle');
+      const apply = (dark) => {
+        document.documentElement.classList.toggle('dark-mode', dark);
+        if (button) {
+          button.textContent = dark ? '☀' : '☾';
+          button.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+          button.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+        }
+      };
+      let dark = localStorage.getItem(key) === 'dark';
+      apply(dark);
+      button?.addEventListener('click', () => {
+        dark = !dark;
+        localStorage.setItem(key, dark ? 'dark' : 'light');
+        apply(dark);
+      });
+    })();
+  </script>
 </body>
 </html>
