@@ -17,20 +17,18 @@ DATA_FILE = BASE_DIR / "bis_data.json"
 load_dotenv(BASE_DIR / ".env")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+# Fast interactive default. Gemini 3.5 Flash-Lite is designed for high-throughput,
+# low-latency work; 3.6 Flash is the quality fallback for BIS questions.
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 DEFAULT_FALLBACK_MODELS = [
-    "gemini-3.5-flash",
-    "gemini-3.7-flash",
+    "gemini-3.5-flash-lite",
     "gemini-3.6-flash",
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
 ]
 configured_models = [item.strip() for item in os.getenv("GEMINI_MODELS", "").split(",") if item.strip()]
 GEMINI_MODELS = list(dict.fromkeys(([GEMINI_MODEL] if GEMINI_MODEL else []) + configured_models + DEFAULT_FALLBACK_MODELS))
 
-# Keep normal requests fast. The Google SDK can retry transient 5xx/429 errors
-# automatically; for this interactive demo we disable SDK retries and do at most
-# one controlled model fallback ourselves.
+# Never walk through a long list of models. One primary attempt and one fallback
+# keeps failures bounded instead of making a simple chat message hang.
 MAX_MODEL_ATTEMPTS = 2
 
 DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
@@ -38,7 +36,7 @@ DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
 app = FastAPI(
     title="BIS AI Assistant API",
     description="SIH26107 prototype for Indian Standards and BIS services.",
-    version="3.1.0",
+    version="3.2.0",
 )
 
 app.add_middleware(
@@ -155,7 +153,6 @@ def is_bis_question(question: str, history: list[ChatMessage] | None = None) -> 
     if _contains_term(question, BIS_TERMS):
         return True
 
-    # Preserve BIS context for short/follow-up turns without requiring exact question matches.
     prior_user_text = " ".join(
         message.content for message in (history or []) if message.role == "user"
     )[-5000:]
@@ -176,11 +173,11 @@ if GEMINI_API_KEY:
             GEMINI_CLIENT = genai.Client(
                 api_key=GEMINI_API_KEY,
                 http_options=types.HttpOptions(
-                    retry_options=types.HttpRetryOptions(attempts=1)
+                    timeout=12000,
+                    retry_options=types.HttpRetryOptions(attempts=1),
                 ),
             )
         except Exception:
-            # Older google-genai versions may not expose HttpRetryOptions.
             GEMINI_CLIENT = genai.Client(api_key=GEMINI_API_KEY)
     except Exception as exc:
         print("GEMINI CLIENT INIT ERROR:", repr(exc))
@@ -201,7 +198,7 @@ def _is_transient_gemini_error(exc: Exception) -> bool:
     return any(marker in text for marker in (
         " 408", "408 ", " 429", "429 ", "resource_exhausted", "rate limit",
         " 500", "500 ", " 502", "502 ", " 503", "503 ", " 504", "504 ",
-        "unavailable", "overloaded", "temporarily",
+        "unavailable", "overloaded", "temporarily", "deadline",
     ))
 
 
@@ -217,6 +214,8 @@ def _error_label(exc: Exception) -> str:
         return "permission"
     if "404" in text or "not found" in text:
         return "model_not_found"
+    if "408" in text or "504" in text or "deadline" in text:
+        return "timeout"
     return "provider_error"
 
 
@@ -261,12 +260,8 @@ def route_question(question: str, history: list[ChatMessage], bis_question: bool
         return "certification"
     if _contains_term(q, COMPLIANCE_TERMS):
         return "compliance"
-
-    # A matching standard/product record naturally routes to the standards specialist.
     if search_records(question):
         return "standards"
-
-    # BIS context with no specific specialist signal defaults to standards/general BIS help.
     return "standards"
 
 
@@ -285,13 +280,21 @@ def _run_gemini(instruction: str, prompt: str, max_output_tokens: int = 500):
     for index, model in enumerate(GEMINI_MODELS[:attempts]):
         try:
             print(f"GEMINI ATTEMPT {index + 1}/{attempts} MODEL={model}")
+            thinking_config = None
+            if model in {"gemini-3.6-flash", "gemini-3.5-flash"}:
+                thinking_config = types.ThinkingConfig(thinking_level="low")
+
+            config_kwargs = {
+                "system_instruction": instruction,
+                "max_output_tokens": max_output_tokens,
+            }
+            if thinking_config is not None:
+                config_kwargs["thinking_config"] = thinking_config
+
             response = GEMINI_CLIENT.models.generate_content(
                 model=model,
                 contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=instruction,
-                    max_output_tokens=max_output_tokens,
-                ),
+                config=types.GenerateContentConfig(**config_kwargs),
             )
             answer = (response.text or "").strip()
             if answer:
@@ -301,7 +304,8 @@ def _run_gemini(instruction: str, prompt: str, max_output_tokens: int = 500):
             last_error = RuntimeError("Gemini returned an empty response")
         except Exception as exc:
             last_error = exc
-            print(f"GEMINI ERROR MODEL={model} TYPE={_error_label(exc)}: {repr(exc)}")
+            label = _error_label(exc)
+            print(f"GEMINI ERROR MODEL={model} TYPE={label}: {repr(exc)}")
             if not _is_transient_gemini_error(exc):
                 return None, "provider_error", model
 
@@ -315,8 +319,6 @@ def ai_answer(question: str, history: list[ChatMessage], off_topic_count: int):
 
     bis_question = is_bis_question(question, history)
     route = route_question(question, history, bis_question)
-
-    # Consecutive off-topic counter is a session behavior, not a list of specific questions.
     new_off_topic_count = 0 if bis_question else min(off_topic_count + 1, 5)
 
     if not bis_question and new_off_topic_count >= 5:
