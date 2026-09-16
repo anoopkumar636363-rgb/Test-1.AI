@@ -7,6 +7,37 @@
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="theme.css" />
   <link rel="stylesheet" href="mobile.css" />
+  <style>
+    /* PC ONLY: Chat History collapses smoothly and the assistant expands. */
+    @media (min-width: 901px) {
+      .workspace { transition: grid-template-columns .28s ease; }
+      .history-panel { transition: width .28s ease, opacity .22s ease, transform .28s ease; overflow: hidden; }
+      .history-reopen { display: none; }
+      body.history-closed .workspace { grid-template-columns: 0 minmax(0, 1fr) 390px !important; }
+      body.history-closed .history-panel { width: 0 !important; min-width: 0 !important; opacity: 0; transform: translateX(-20px); pointer-events: none; }
+      body.history-closed .history-reopen {
+        display: grid;
+        position: fixed;
+        left: 12px;
+        top: 82px;
+        width: 40px;
+        height: 40px;
+        z-index: 250;
+        place-items: center;
+        border: 1px solid #dce4ee;
+        border-radius: 10px;
+        background: #fff;
+        color: #1c579c;
+        box-shadow: 0 6px 18px #00000018;
+        font-size: 20px;
+        cursor: pointer;
+        animation: historyReopen .28s ease both;
+      }
+      body.history-closed .history-reopen:hover { transform: translateX(2px); box-shadow: 0 8px 22px #00000024; }
+      html.dark-mode body.history-closed .history-reopen { background: #172331; border-color: #304256; color: #8fc4fa; }
+    }
+    @keyframes historyReopen { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+  </style>
 </head>
 <body>
   <header class="topbar">
