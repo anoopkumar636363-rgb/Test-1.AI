@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkillBridge — Academia × Industry</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">S</span><div><strong>SkillBridge</strong><small>Academia × Industry</small></div></div>
+    <nav>
+      <button class="nav-btn active" data-view="student">Student</button>
+      <button class="nav-btn" data-view="industry">Industry</button>
+      <button class="nav-btn" data-view="institution">Institution</button>
+    </nav>
+    <div class="profile">AK</div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">SIH26044 • SKILL MAPPING</p>
+        <h1>Turn your skills into<br /><span>real opportunities.</span></h1>
+        <p class="hero-copy">Assess your skills, discover what employers need, close your skill gaps, and find internships that actually match your profile.</p>
+        <div class="hero-actions">
+          <button class="primary" id="assessmentBtn">Take Skill Assessment →</button>
+          <button class="secondary" id="portfolioBtn">View My Portfolio</button>
+        </div>
+      </div>
+      <div class="match-card">
+        <div class="match-head"><span>Career readiness</span><b>78%</b></div>
+        <div class="progress"><div style="width:78%"></div></div>
+        <div class="match-grid">
+          <div><strong>8</strong><span>Verified skills</span></div>
+          <div><strong>3</strong><span>Skill gaps</span></div>
+          <div><strong>12</strong><span>Matches</span></div>
+        </div>
+        <p class="tip">💡 Your strongest path: <b>Frontend Development</b></p>
+      </div>
+    </section>
+
+    <section class="dashboard" id="dashboard">
+      <div class="section-heading">
+        <div><p class="eyebrow">PERSONALIZED FOR YOU</p><h2>Recommended opportunities</h2></div>
+        <button class="filter">All opportunities ▾</button>
+      </div>
+      <div class="opportunity-grid">
+        <article class="opportunity">
+          <div class="company-logo">T</div><div class="opp-main"><div class="opp-title"><h3>Frontend Developer Intern</h3><span class="match high">92% match</span></div><p>TechNova Labs • Bengaluru • 3 months</p><div class="chips"><span>✓ JavaScript</span><span>✓ HTML/CSS</span><span>✕ React</span></div><button class="apply" data-role="Frontend Developer Intern">Apply now</button></div>
+        </article>
+        <article class="opportunity">
+          <div class="company-logo purple">A</div><div class="opp-main"><div class="opp-title"><h3>Software Engineering Intern</h3><span class="match medium">76% match</span></div><p>Alpha Systems • Remote • 6 months</p><div class="chips"><span>✓ Python</span><span>✓ Git</span><span>✕ FastAPI</span></div><button class="apply" data-role="Software Engineering Intern">Apply now</button></div>
+        </article>
+        <article class="opportunity">
+          <div class="company-logo orange">I</div><div class="opp-main"><div class="opp-title"><h3>AI Project Intern</h3><span class="match medium">68% match</span></div><p>InnovateAI • Hyderabad • 4 months</p><div class="chips"><span>✓ Python</span><span>✕ ML</span><span>✕ Pandas</span></div><button class="apply" data-role="AI Project Intern">View details</button></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="skill-section">
+      <div class="skill-panel">
+        <p class="eyebrow">SKILL GAP ANALYSIS</p><h2>What should you learn next?</h2>
+        <p>Compare your verified skills against current industry requirements.</p>
+        <div class="skill-row"><span>JavaScript</span><div class="mini-progress"><i style="width:95%"></i></div><b>95%</b></div>
+        <div class="skill-row"><span>React</span><div class="mini-progress"><i style="width:48%"></i></div><b>48%</b></div>
+        <div class="skill-row"><span>Git & GitHub</span><div class="mini-progress"><i style="width:82%"></i></div><b>82%</b></div>
+        <div class="skill-row"><span>REST APIs</span><div class="mini-progress"><i style="width:61%"></i></div><b>61%</b></div>
+        <button class="primary small" id="roadmapBtn">Generate learning roadmap</button>
+      </div>
+      <div class="portfolio-panel">
+        <div class="avatar">AK</div><h3>Anoop Kumar</h3><p>CSE • 2nd Year</p>
+        <div class="portfolio-tags"><span>Python</span><span>FastAPI</span><span>JavaScript</span><span>GitHub</span></div>
+        <div class="portfolio-stat"><span>Digital portfolio completeness</span><strong>84%</strong></div>
+        <div class="progress"><div style="width:84%"></div></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal hidden" id="modal"><div class="modal-box"><button class="close" id="closeModal">×</button><p class="eyebrow">DEMO ACTION</p><h2 id="modalTitle">Skill Assessment</h2><p id="modalText">This sample shows the user flow. In the real SIH version, the assessment, matching engine and applications will be connected to the backend.</p><button class="primary" id="modalAction">Continue</button></div></div>
+  <script src="script.js"></script>
+</body>
+</html>
