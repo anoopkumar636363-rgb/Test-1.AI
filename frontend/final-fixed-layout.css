@@ -35,18 +35,31 @@ html, body {
   justify-items: stretch !important;
   overflow: hidden !important;
   transform: none !important;
+  transition: none !important;
 }
 
-/* Keep the desktop grid locked even when the old JS adds history-closed. */
+/* Desktop: history is a permanent column. Old state rules must never collapse or animate it. */
 body.history-closed .workspace {
   grid-template-columns: 300px minmax(0, 1fr) 390px !important;
   grid-template-areas: "history assistant tools" !important;
+  transition: none !important;
 }
 
 body.history-closed .history-panel {
   display: flex !important;
   visibility: visible !important;
+  opacity: 1 !important;
   width: auto !important;
+  height: auto !important;
+  transform: none !important;
+  padding: 25px 17px !important;
+  pointer-events: auto !important;
+  border-right-color: var(--line) !important;
+  transition: none !important;
+}
+
+body.history-closed .history-reopen {
+  display: none !important;
 }
 
 .history-panel,
@@ -63,10 +76,14 @@ body.history-closed .history-panel {
 .history-panel {
   grid-area: history !important;
   display: flex !important;
+  flex-direction: column !important;
   width: auto !important;
   height: auto !important;
   visibility: visible !important;
   opacity: 1 !important;
+  padding: 25px 17px !important;
+  pointer-events: auto !important;
+  transition: none !important;
 }
 
 .assistant-column {
@@ -95,7 +112,8 @@ footer {
     height: 64px !important;
   }
 
-  .workspace {
+  .workspace,
+  body.history-closed .workspace {
     top: 64px !important;
     height: calc(100vh - 64px) !important;
     grid-template-columns: minmax(0, 1fr) !important;
@@ -112,11 +130,25 @@ footer {
     z-index: 1100 !important;
     transform: translateX(-100%) !important;
     visibility: hidden !important;
+    opacity: 1 !important;
+    padding: 25px 17px !important;
+    pointer-events: auto !important;
+    border-right-color: var(--line) !important;
+    transition: transform .22s ease, visibility 0s linear .22s !important;
   }
 
   body.history-open .history-panel {
     transform: translateX(0) !important;
     visibility: visible !important;
+  }
+
+  body.history-closed .history-panel {
+    display: flex !important;
+    transform: translateX(-100%) !important;
+    visibility: hidden !important;
+    opacity: 1 !important;
+    padding: 25px 17px !important;
+    pointer-events: auto !important;
   }
 
   body.history-open .history-reopen {
