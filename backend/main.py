@@ -28,12 +28,17 @@ DEFAULT_FALLBACK_MODELS = [
 configured_models = [item.strip() for item in os.getenv("GEMINI_MODELS", "").split(",") if item.strip()]
 GEMINI_MODELS = list(dict.fromkeys(([GEMINI_MODEL] if GEMINI_MODEL else []) + configured_models + DEFAULT_FALLBACK_MODELS))
 
+# Keep normal requests fast. The Google SDK can retry transient 5xx/429 errors
+# automatically; for this interactive demo we disable SDK retries and do at most
+# one controlled model fallback ourselves.
+MAX_MODEL_ATTEMPTS = 2
+
 DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
 
 app = FastAPI(
     title="BIS AI Assistant API",
     description="SIH26107 prototype for Indian Standards and BIS services.",
-    version="3.0.0",
+    version="3.1.0",
 )
 
 app.add_middleware(
@@ -70,8 +75,7 @@ STOPWORDS = {
 
 def _tokens(value: str) -> list[str]:
     return [
-        token
-        for token in re.findall(r"[a-z0-9]+", value.lower())
+        token for token in re.findall(r"[a-z0-9]+", value.lower())
         if len(token) > 2 and token not in STOPWORDS
     ]
 
@@ -81,6 +85,7 @@ def _record_text(item: dict) -> str:
 
 
 def search_records(query: str):
+    """Retrieve related curated BIS records. This is data retrieval, not answer generation."""
     query_tokens = _tokens(query)
     if not query_tokens:
         return []
@@ -117,11 +122,66 @@ def search_records(query: str):
     return [item for _, item in results]
 
 
+BIS_TERMS = {
+    "bis", "bureau of indian standards", "indian standard", "indian standards", "isi mark",
+    "hallmark", "hallmarking", "certification", "certified", "licence", "license", "cm/l",
+    "testing laboratory", "testing lab", "manak", "crs", "fmcs", "product certification",
+    "bis care", "bis portal", "standards portal", "qco", "quality control order", "conformity",
+}
+
+CERTIFICATION_TERMS = {
+    "certification", "certified", "certificate", "certify", "licence application", "license application",
+    "product certification", "scheme", "grant of licence", "surveillance",
+}
+
+COMPLIANCE_TERMS = {
+    "compliance", "qco", "quality control order", "mandatory", "conformity", "requirement",
+    "requirements", "legal requirement", "regulation", "regulatory", "compulsory",
+}
+
+VERIFICATION_TERMS = {
+    "verify", "verification", "licence", "license", "cm/l", "registration number", "registration",
+    "is my licence", "is my license", "genuine licence", "genuine license", "check licence", "check license",
+}
+
+
+def _contains_term(text: str, terms: set[str]) -> bool:
+    q = text.lower()
+    return any(term in q for term in terms)
+
+
+def is_bis_question(question: str, history: list[ChatMessage] | None = None) -> bool:
+    """Detect BIS scope without mapping individual questions to canned answers."""
+    if _contains_term(question, BIS_TERMS):
+        return True
+
+    # Preserve BIS context for short/follow-up turns without requiring exact question matches.
+    prior_user_text = " ".join(
+        message.content for message in (history or []) if message.role == "user"
+    )[-5000:]
+    if prior_user_text and _contains_term(prior_user_text, BIS_TERMS):
+        words = _tokens(question)
+        return len(words) <= 12 or _contains_term(question, {"standard", "product", "certification", "compliance", "license", "licence", "lab", "testing"})
+
+    return False
+
+
 GEMINI_CLIENT = None
 if GEMINI_API_KEY:
     try:
         from google import genai
-        GEMINI_CLIENT = genai.Client(api_key=GEMINI_API_KEY)
+        from google.genai import types
+
+        try:
+            GEMINI_CLIENT = genai.Client(
+                api_key=GEMINI_API_KEY,
+                http_options=types.HttpOptions(
+                    retry_options=types.HttpRetryOptions(attempts=1)
+                ),
+            )
+        except Exception:
+            # Older google-genai versions may not expose HttpRetryOptions.
+            GEMINI_CLIENT = genai.Client(api_key=GEMINI_API_KEY)
     except Exception as exc:
         print("GEMINI CLIENT INIT ERROR:", repr(exc))
 
@@ -139,9 +199,9 @@ def _history_prompt(history: list[ChatMessage]) -> str:
 def _is_transient_gemini_error(exc: Exception) -> bool:
     text = str(exc).lower()
     return any(marker in text for marker in (
-        " 429", "429 ", "resource_exhausted", "rate limit",
-        " 500", "500 ", " 502", "502 ", " 503", "503 ",
-        " 504", "504 ", "unavailable", "overloaded", "temporarily",
+        " 408", "408 ", " 429", "429 ", "resource_exhausted", "rate limit",
+        " 500", "500 ", " 502", "502 ", " 503", "503 ", " 504", "504 ",
+        "unavailable", "overloaded", "temporarily",
     ))
 
 
@@ -163,33 +223,51 @@ def _error_label(exc: Exception) -> str:
 AGENT_PROMPTS = {
     "general": """
 You are the General Conversation Agent inside the BIS AI Assistant.
-Handle normal conversation, casual questions, greetings, general knowledge, simple explanations and harmless random questions naturally.
-Do not pretend that general facts are BIS facts. Do not invent BIS-specific information.
-If the user asks about BIS, Indian Standards, certification, compliance, laboratories or licence verification, the orchestrator should have routed the request to a BIS specialist instead.
+Handle normal conversation, greetings, general knowledge, simple explanations and harmless random questions naturally.
+You may answer general questions; do not force BIS into unrelated conversations.
 """,
     "standards": """
 You are the BIS Standards Specialist.
-Your job is to reason over retrieved BIS standards data and explain which Indian Standard records are relevant to the user's product or question.
+Reason over the supplied BIS records and explain which Indian Standard information is relevant to the user's product or question.
 Treat supplied BIS records as the factual source of truth. Never invent an IS number, title, revision, amendment, scope or requirement.
-If the supplied records are insufficient, say so and direct the user to verify the current official BIS record.
 """,
     "certification": """
 You are the BIS Certification Specialist.
 Explain BIS product certification and certification workflow using supplied verified BIS information.
 Never invent fees, timelines, licence requirements, mandatory certification claims or legal requirements.
-Separate general explanation from facts that must be verified against current BIS information.
 """,
     "compliance": """
 You are the BIS Compliance Specialist.
-Help users understand BIS-related compliance questions, QCO-related context, conformity concepts and practical next steps using supplied verified information.
+Help users understand BIS-related compliance, QCO context, conformity concepts and practical next steps using supplied verified information.
 Never invent a mandatory requirement or claim that a product is legally required to be certified unless the supplied source supports it.
 """,
     "verification": """
 You are the BIS Verification Specialist.
 Help users understand licence/registration verification and BIS verification workflows.
-Only report a licence as verified when the connected verification data actually contains it. Never manufacture a licence status.
+Only report a licence as verified when connected verification data actually contains it. Never manufacture a licence status.
 """,
 }
+
+
+def route_question(question: str, history: list[ChatMessage], bis_question: bool) -> str:
+    """Fast deterministic routing based on topic signals, not hardcoded question/answer pairs."""
+    if not bis_question:
+        return "general"
+
+    q = question.lower()
+    if _contains_term(q, VERIFICATION_TERMS):
+        return "verification"
+    if _contains_term(q, CERTIFICATION_TERMS):
+        return "certification"
+    if _contains_term(q, COMPLIANCE_TERMS):
+        return "compliance"
+
+    # A matching standard/product record naturally routes to the standards specialist.
+    if search_records(question):
+        return "standards"
+
+    # BIS context with no specific specialist signal defaults to standards/general BIS help.
+    return "standards"
 
 
 def _run_gemini(instruction: str, prompt: str, max_output_tokens: int = 500):
@@ -203,9 +281,10 @@ def _run_gemini(instruction: str, prompt: str, max_output_tokens: int = 500):
         return None, "provider_error", None
 
     last_error = None
-    for index, model in enumerate(GEMINI_MODELS):
+    attempts = min(MAX_MODEL_ATTEMPTS, len(GEMINI_MODELS))
+    for index, model in enumerate(GEMINI_MODELS[:attempts]):
         try:
-            print(f"GEMINI ATTEMPT {index + 1}/{len(GEMINI_MODELS)} MODEL={model}")
+            print(f"GEMINI ATTEMPT {index + 1}/{attempts} MODEL={model}")
             response = GEMINI_CLIENT.models.generate_content(
                 model=model,
                 contents=prompt,
@@ -222,95 +301,44 @@ def _run_gemini(instruction: str, prompt: str, max_output_tokens: int = 500):
             last_error = RuntimeError("Gemini returned an empty response")
         except Exception as exc:
             last_error = exc
-            label = _error_label(exc)
-            print(f"GEMINI ERROR MODEL={model} TYPE={label}: {repr(exc)}")
+            print(f"GEMINI ERROR MODEL={model} TYPE={_error_label(exc)}: {repr(exc)}")
             if not _is_transient_gemini_error(exc):
                 return None, "provider_error", model
 
-    print("GEMINI ALL MODELS FAILED:", repr(last_error))
+    print("GEMINI REQUESTS EXHAUSTED:", repr(last_error))
     return None, "provider_error", None
-
-
-def _clean_route(value: str) -> str:
-    value = value.strip().lower()
-    aliases = {
-        "standard": "standards",
-        "indian standards": "standards",
-        "product standards": "standards",
-        "certification": "certification",
-        "certificate": "certification",
-        "compliance": "compliance",
-        "verification": "verification",
-        "verify": "verification",
-        "license": "verification",
-        "licence": "verification",
-        "general": "general",
-        "normal": "general",
-    }
-    return aliases.get(value, value if value in AGENT_PROMPTS else "general")
-
-
-def route_question(question: str, history: list[ChatMessage]) -> str:
-    """Let the orchestration model decide which specialist should handle the turn."""
-    router_prompt = f"""
-Classify the user's current request for the BIS AI Assistant.
-Choose exactly one route: general, standards, certification, compliance, verification.
-Use the conversation context when a follow-up such as 'what about certification?' depends on the previous product/topic.
-Return ONLY the route name. No punctuation and no explanation.
-
-Conversation:
-{_history_prompt(history)}
-
-Current request:
-{question}
-"""
-    answer, status, _ = _run_gemini(
-        "You are the Orchestrator Agent. Route requests to the most appropriate internal agent. Do not answer the user.",
-        router_prompt,
-        max_output_tokens=20,
-    )
-    if status != "ok" or not answer:
-        # This is only a safe degradation path if the AI router itself is unavailable.
-        return "general"
-    return _clean_route(answer)
 
 
 def ai_answer(question: str, history: list[ChatMessage], off_topic_count: int):
     if not GEMINI_CLIENT:
-        return (
-            "The AI service is not configured on the server. Check GEMINI_API_KEY in the deployment environment.",
-            [], "configuration", None, "general", off_topic_count,
-        )
+        return "The AI service is not configured on the server. Check GEMINI_API_KEY in the deployment environment.", [], "configuration", None, "general", off_topic_count
 
-    route = route_question(question, history)
-    bis_route = route != "general"
+    bis_question = is_bis_question(question, history)
+    route = route_question(question, history, bis_question)
 
-    if bis_route:
-        new_off_topic_count = 0
-    else:
-        new_off_topic_count = min(off_topic_count + 1, 5)
+    # Consecutive off-topic counter is a session behavior, not a list of specific questions.
+    new_off_topic_count = 0 if bis_question else min(off_topic_count + 1, 5)
 
-    # After five consecutive off-topic turns, the assistant politely enforces its scope.
-    if route == "general" and new_off_topic_count >= 5:
+    if not bis_question and new_off_topic_count >= 5:
         return (
             "I can answer general questions for a few turns, but I’m the BIS AI Assistant. "
             "Let’s get back to Indian Standards, BIS certification, compliance, testing, "
             "licence verification, or other BIS services. 🙂",
-            [], "ok", None, route, new_off_topic_count,
+            [], "ok", None, "general", new_off_topic_count,
         )
 
-    matches = search_records(question)[:8] if bis_route else []
+    matches = search_records(question)[:8] if bis_question else []
     context = json.dumps(matches, ensure_ascii=False, indent=2) if matches else "No relevant verified BIS records were found for this turn."
 
-    specialist = AGENT_PROMPTS[route]
-    final_instruction = specialist + """
+    final_instruction = AGENT_PROMPTS[route] + """
 
-You are one internal agent in a larger BIS AI system. Answer the user directly, naturally and concisely.
-The user should not see internal routing terminology or agent names.
-Use conversation history to resolve references and maintain context.
-For BIS-specific claims, the supplied retrieved BIS records outrank your general model knowledge.
-Do not invent missing BIS facts.
-Do not produce a separate source list; the application displays source links separately.
+You are one internal specialist in a larger BIS AI Assistant. Answer the user directly and naturally.
+The user should not see internal routing or agent terminology.
+Use the conversation history to resolve references and maintain context.
+For BIS-specific claims, supplied retrieved BIS records outrank your general model knowledge.
+Never invent missing BIS facts.
+Do not output a separate source list; the application displays source links separately.
+For important compliance/certification decisions, recommend checking the current official BIS information.
 """
 
     prompt = f"""
@@ -320,13 +348,13 @@ Conversation history:
 Current user request:
 {question}
 
-Internal route:
+Internal specialist role:
 {route}
 
 Retrieved BIS records:
 {context}
 
-Give the best direct response to the current request.
+Respond to the current user request directly. Keep a normal conversation tone.
 """
 
     answer, status, model_used = _run_gemini(final_instruction, prompt, max_output_tokens=500)
@@ -343,7 +371,7 @@ def health():
         "service": "BIS AI Assistant",
         "ai_configured": bool(GEMINI_CLIENT),
         "primary_model": GEMINI_MODEL if GEMINI_CLIENT else None,
-        "fallback_models": GEMINI_MODELS if GEMINI_CLIENT else [],
+        "fallback_models": GEMINI_MODELS[:MAX_MODEL_ATTEMPTS] if GEMINI_CLIENT else [],
         "knowledge_base_records": len(DATA.get("knowledge", [])) + len(DATA.get("standards", [])),
         "agents": list(AGENT_PROMPTS.keys()),
         "session_memory": True,
@@ -405,6 +433,7 @@ def verify(request: VerifyRequest):
     for item in DATA.get("demo_licenses", []):
         if item.get("license_number", "").upper() == number:
             return {"found": True, "result": item, "demo": True}
+
     return {
         "found": False,
         "demo": False,
