@@ -37,6 +37,18 @@ html, body {
   transform: none !important;
 }
 
+/* Keep the desktop grid locked even when the old JS adds history-closed. */
+body.history-closed .workspace {
+  grid-template-columns: 300px minmax(0, 1fr) 390px !important;
+  grid-template-areas: "history assistant tools" !important;
+}
+
+body.history-closed .history-panel {
+  display: flex !important;
+  visibility: visible !important;
+  width: auto !important;
+}
+
 .history-panel,
 .assistant-column,
 .tools-column {
