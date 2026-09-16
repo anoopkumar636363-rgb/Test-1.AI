@@ -10,13 +10,23 @@ function escapeHtml(value) {
   })[char]);
 }
 
-function addMessage(role, text) {
+function addMessage(role, text, sources = []) {
   const box = $('chat');
   const message = document.createElement('div');
   message.className = `message ${role}`;
-  message.innerHTML = role === 'bot'
-    ? `<b>BIS AI</b><p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`
-    : `<p>${escapeHtml(text)}</p>`;
+
+  if (role === 'bot') {
+    const sourceHtml = sources.length
+      ? `<div class="sources"><b>Official BIS sources</b>${sources.map((item) =>
+          `<a href="${escapeHtml(item.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.source || item.title || 'BIS source')} ↗</a>`
+        ).join('')}</div>`
+      : '';
+
+    message.innerHTML = `<b>BIS AI</b><p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>${sourceHtml}`;
+  } else {
+    message.innerHTML = `<p>${escapeHtml(text)}</p>`;
+  }
+
   box.appendChild(message);
   box.scrollTop = box.scrollHeight;
   return message;
@@ -66,7 +76,7 @@ $('askForm').addEventListener('submit', async (event) => {
     });
     const data = await response.json();
     typing.remove();
-    addMessage('bot', data.answer || 'No answer was returned.');
+    addMessage('bot', data.answer || 'No answer was returned.', data.sources || []);
   } catch {
     typing.remove();
     addMessage('bot', 'The backend is not reachable. Start FastAPI with: uvicorn backend.main:app --reload');
@@ -88,13 +98,13 @@ async function searchStandards() {
     box.innerHTML = data.length
       ? data.map((item) => `
         <article class="result">
-          <span class="id">${escapeHtml(item.id || 'STANDARD')}</span>
+          <span class="id">${escapeHtml(item.id || 'BIS KNOWLEDGE')}</span>
           <h3>${escapeHtml(item.title || 'Untitled')}</h3>
-          <p>${escapeHtml(item.product || '')} · ${escapeHtml(item.category || '')}</p>
+          <p>${escapeHtml(item.product || item.source || '')} · ${escapeHtml(item.category || 'BIS knowledge')}</p>
           <p>${escapeHtml(item.summary || '')}</p>
-          <span class="source">${escapeHtml(item.source || 'Verified source to be added')}</span>
+          ${item.source_url ? `<a class="source" href="${escapeHtml(item.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.source || 'Official BIS source')} ↗</a>` : ''}
         </article>`).join('')
-      : '<p class="muted">No BIS records are connected yet. Verified BIS information will be added here.</p>';
+      : '<p class="muted">No matching BIS records were found.</p>';
   } catch {
     box.innerHTML = '<p class="muted">Backend unavailable.</p>';
   }
