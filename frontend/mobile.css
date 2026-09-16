@@ -1,47 +1,49 @@
 /* Mobile-first responsive layer. Desktop keeps the existing three-column structure. */
 @media (max-width: 600px) {
   html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
-  body { overflow-x: hidden; }
+  body { overflow-x: hidden; min-height: 100dvh; }
 
   .topbar {
     position: sticky;
     top: 0;
-    height: 64px;
-    min-height: 64px;
-    padding: 0 10px;
-    gap: 7px;
+    height: clamp(58px, 8dvh, 68px);
+    min-height: 58px;
+    padding: 0 clamp(7px, 2vw, 14px);
+    gap: clamp(4px, 1.4vw, 8px);
+    box-sizing: border-box;
+    z-index: 300;
   }
 
   .mobile-history-btn,
   .mobile-tools-btn {
     display: grid;
     place-items: center;
-    width: 42px;
-    height: 42px;
-    flex: 0 0 42px;
+    width: clamp(38px, 11vw, 44px);
+    height: clamp(38px, 11vw, 44px);
+    flex: 0 0 clamp(38px, 11vw, 44px);
     border: 1px solid #dce4ee;
     border-radius: 12px;
     background: #f8fbff;
     color: #285b9a;
-    font-size: 21px;
+    font-size: clamp(19px, 5.5vw, 22px);
     line-height: 1;
   }
 
-  .mobile-tools-btn { font-size: 23px; }
-  .brand { margin-right: auto; min-width: 0; gap: 8px; }
-  .brand b { font-size: 14px; }
-  .brand small { font-size: 8px; }
-  .brand-mark { width: 36px; height: 36px; flex: 0 0 36px; }
-  .theme-toggle { width: 40px; height: 40px; flex: 0 0 40px; }
-  .badge { max-width: 78px; overflow: hidden; text-overflow: ellipsis; }
+  .mobile-tools-btn { font-size: clamp(21px, 6vw, 24px); }
+  .brand { margin-right: auto; min-width: 0; max-width: 42vw; gap: clamp(5px, 1.8vw, 9px); overflow: hidden; }
+  .brand b { display: block; font-size: clamp(12px, 3.6vw, 16px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brand small { display: block; font-size: clamp(7px, 2vw, 9px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brand-mark { width: clamp(32px, 9vw, 38px); height: clamp(32px, 9vw, 38px); flex: 0 0 clamp(32px, 9vw, 38px); }
+  .theme-toggle { width: clamp(36px, 10vw, 42px); height: clamp(36px, 10vw, 42px); flex: 0 0 clamp(36px, 10vw, 42px); }
+  .badge { max-width: clamp(56px, 16vw, 80px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(8px, 2.4vw, 11px); }
 
   .workspace {
     display: block !important;
     width: 100% !important;
     max-width: none !important;
     min-width: 0 !important;
+    min-height: calc(100dvh - clamp(58px, 8dvh, 68px));
     height: auto !important;
-    min-height: 0;
     overflow: visible !important;
     margin: 0;
   }
@@ -49,24 +51,28 @@
   .assistant-column {
     width: 100%;
     min-width: 0 !important;
-    padding: 24px 12px 20px !important;
+    min-height: calc(100dvh - clamp(58px, 8dvh, 68px));
+    box-sizing: border-box;
+    padding: clamp(18px, 4.5vw, 28px) clamp(12px, 4vw, 24px) clamp(18px, 4vw, 28px) !important;
     overflow: visible !important;
   }
 
-  .assistant-heading { margin-bottom: 16px; }
-  .assistant-heading h1 { font-size: clamp(26px, 8vw, 34px) !important; line-height: 1.08; letter-spacing: -.7px; }
+  .assistant-heading { margin-bottom: clamp(12px, 3vw, 18px); }
+  .assistant-heading h1 { font-size: clamp(26px, 8vw, 36px) !important; line-height: 1.08; letter-spacing: -.7px; }
   .assistant-heading p:not(.eyebrow) { font-size: clamp(11px, 3.4vw, 14px) !important; line-height: 1.55; }
 
   .chat-card {
     width: 100%;
-    padding: 10px !important;
-    border-radius: 15px;
+    box-sizing: border-box;
+    padding: clamp(9px, 2.5vw, 14px) !important;
+    border-radius: clamp(14px, 3vw, 18px);
+    min-height: clamp(330px, 48dvh, 560px);
   }
 
   .chat {
     height: auto !important;
-    min-height: 0 !important;
-    max-height: 48vh !important;
+    min-height: clamp(110px, 15dvh, 180px) !important;
+    max-height: 48dvh !important;
     padding: 2px 1px 5px !important;
     overflow-y: auto !important;
   }
@@ -84,38 +90,42 @@
     border-radius: 13px;
     background: #1b2835;
     color: #dbe5f0;
-    font-size: 12px;
+    font-size: clamp(11px, 3.2vw, 13px);
     line-height: 1.55;
   }
 
-  .welcome-message { margin: 3px 0 8px !important; padding: 15px !important; }
-  .welcome-message p { font-size: 12px; line-height: 1.55; }
-  .welcome-prompts { gap: 6px; }
-  .welcome-prompts button { padding: 8px 10px; font-size: 10px; }
+  .welcome-message { margin: 3px 0 8px !important; padding: clamp(13px, 3.5vw, 17px) !important; }
+  .welcome-message p { font-size: clamp(11px, 3.2vw, 13px); line-height: 1.55; }
+  .welcome-prompts { gap: 6px; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .welcome-prompts::-webkit-scrollbar { display: none; }
+  .welcome-prompts button { padding: 8px 10px; font-size: clamp(9px, 2.7vw, 11px); white-space: nowrap; }
   .message { max-width: 94% !important; }
 
   .ask-form {
     margin-top: 7px !important;
-    min-height: 54px;
+    min-height: clamp(52px, 8vw, 58px);
+    box-sizing: border-box;
   }
-  .ask-form textarea { font-size: 13px !important; line-height: 1.35; }
-  .send-btn { width: 42px !important; height: 42px !important; border-radius: 11px; }
-  .chips { margin-bottom: 2px; }
+  .ask-form textarea { font-size: clamp(12px, 3.5vw, 14px) !important; line-height: 1.35; min-width: 0; }
+  .send-btn { width: clamp(40px, 11vw, 46px) !important; height: clamp(40px, 11vw, 46px) !important; border-radius: 11px; flex: 0 0 auto; }
+  .chips { margin-bottom: 2px; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chips button { flex: 0 0 auto; white-space: nowrap; }
 
   /* On phones Quick Tools become a second right-side drawer instead of a long page section. */
   .tools-column {
     position: fixed !important;
-    top: 64px !important;
+    top: clamp(58px, 8dvh, 68px) !important;
     right: 0 !important;
     bottom: 0 !important;
     left: auto !important;
-    width: min(92vw, 360px) !important;
+    width: min(88vw, 360px) !important;
     max-width: 360px !important;
     height: auto !important;
     border: 0 !important;
     border-left: 1px solid #26384d !important;
     border-top: 0 !important;
-    padding: 22px 14px 30px !important;
+    padding: 20px clamp(12px, 3.5vw, 16px) 28px !important;
     overflow-y: auto !important;
     overscroll-behavior: contain;
     transform: translateX(105%);
@@ -132,16 +142,16 @@
     justify-content: space-between;
     gap: 12px;
   }
-  .tools-heading h2 { font-size: 21px; }
-  .tools-heading p { font-size: 11px; }
+  .tools-heading h2 { font-size: clamp(19px, 5.5vw, 22px); }
+  .tools-heading p { font-size: clamp(10px, 2.8vw, 12px); }
   .tools-close { font-size: 30px; color: #aebed1; padding: 0 5px; }
 
-  .tool-card { width: 100%; padding: 16px; border-radius: 14px; }
-  .tool-card h3 { font-size: 14px; }
-  .tool-card > p { font-size: 10px; }
+  .tool-card { width: 100%; box-sizing: border-box; padding: clamp(14px, 4vw, 18px); border-radius: 14px; }
+  .tool-card h3 { font-size: clamp(13px, 3.8vw, 15px); }
+  .tool-card > p { font-size: clamp(9px, 2.8vw, 11px); }
   .tool-form { align-items: stretch; }
-  .tool-form input { min-width: 0; font-size: 12px; }
-  .tool-form button, .tool-action { min-height: 40px; font-size: 11px; }
+  .tool-form input { min-width: 0; font-size: clamp(11px, 3.2vw, 13px); }
+  .tool-form button, .tool-action { min-height: 40px; font-size: clamp(10px, 3vw, 12px); }
 
   /* Shared backdrop for either drawer. */
   body.history-open::after,
@@ -150,43 +160,38 @@
     position: fixed;
     left: 0;
     right: 0;
-    top: 64px;
+    top: clamp(58px, 8dvh, 68px);
     bottom: 0;
     background: rgba(0,0,0,.46);
     z-index: 190;
   }
 
   .history-panel {
-    top: 64px !important;
+    top: clamp(58px, 8dvh, 68px) !important;
     left: 0 !important;
     right: auto !important;
     bottom: 0 !important;
-    width: min(88vw, 330px) !important;
+    width: min(84vw, 330px) !important;
     max-width: 330px;
-    padding: 22px 14px 14px;
+    padding: 20px clamp(12px, 3.5vw, 16px) 14px;
     z-index: 200;
     box-shadow: 18px 0 45px rgba(0,0,0,.25);
   }
 
-  .history-head h2 { font-size: 20px; }
-  .history-head p { font-size: 11px; }
-  .new-chat { min-height: 48px; font-size: 13px; }
+  .history-head h2 { font-size: clamp(19px, 5.5vw, 21px); }
+  .history-head p { font-size: clamp(10px, 2.8vw, 12px); }
+  .new-chat { min-height: 46px; font-size: clamp(12px, 3.5vw, 14px); }
   .history-list { margin-top: 14px; }
-  .history-item { min-height: 52px; }
-  .clear-history { min-height: 48px; font-size: 12px; }
+  .history-item { min-height: 50px; }
+  .clear-history { min-height: 46px; font-size: clamp(11px, 3.2vw, 13px); }
 
   footer { display: none; }
 }
 
 @media (max-width: 390px) {
-  .topbar { padding: 0 7px; gap: 5px; }
-  .mobile-history-btn, .mobile-tools-btn { width: 38px; height: 38px; flex-basis: 38px; }
-  .brand { gap: 6px; }
-  .brand-mark { width: 34px; height: 34px; flex-basis: 34px; }
-  .brand b { font-size: 13px; }
+  .brand { max-width: 39vw; }
   .brand small { display: none; }
-  .theme-toggle { width: 36px; height: 36px; flex-basis: 36px; }
-  .badge { max-width: 64px; font-size: 8px; padding: 6px 7px; }
+  .badge { max-width: 14vw; }
 }
 
 @media (min-width: 601px) {
