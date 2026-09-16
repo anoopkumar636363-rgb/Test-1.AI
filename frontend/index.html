@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0b3b70">
   <title>BIS AI Assistant — SIH26107</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260917-final">
 </head>
 <body>
   <header class="topbar">
@@ -13,14 +13,12 @@
       <span class="brand-mark">BIS</span>
       <span class="brand-copy"><strong>BIS AI Assistant</strong><small>Indian Standards &amp; Services</small></span>
     </a>
-
     <nav class="main-nav" aria-label="Main navigation">
       <a class="nav-link active" href="#assistant">Assistant</a>
       <a class="nav-link" href="#standards">Standards</a>
       <a class="nav-link" href="#certification">Certification</a>
       <a class="nav-link" href="#verify">Verify</a>
     </nav>
-
     <div class="header-actions">
       <button id="themeToggle" class="theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch theme">☾</button>
       <span id="apiBadge" class="badge">● Connecting</span>
@@ -30,13 +28,9 @@
   <main class="workspace">
     <aside id="historyPanel" class="history-panel" aria-label="Chat history">
       <div class="history-head">
-        <div>
-          <h2>Chat History</h2>
-          <p>Conversations stay only in this session.</p>
-        </div>
+        <div><h2>Chat History</h2><p>Conversations stay only in this session.</p></div>
         <button id="closeHistory" class="icon-btn" type="button" aria-label="Close chat history">×</button>
       </div>
-
       <button id="newChatBtn" class="new-chat" type="button">＋ New chat</button>
       <div id="historyList" class="history-list"></div>
       <button id="clearHistoryBtn" class="clear-history" type="button">🗑 Clear all chats</button>
@@ -46,22 +40,17 @@
 
     <section id="assistant" class="assistant-column">
       <div class="assistant-heading">
-        <div>
-          <p class="eyebrow">INTELLIGENT ASSISTANT</p>
-          <h1>Ask BIS AI</h1>
-          <p>Get help with Indian Standards, certification, testing, hallmarking, licences and BIS services.</p>
-        </div>
+        <p class="eyebrow">INTELLIGENT ASSISTANT</p>
+        <h1>Ask BIS AI</h1>
+        <p>Get help with Indian Standards, certification, testing, hallmarking, licences and BIS services.</p>
       </div>
-
       <div class="chat-card">
         <div id="chat" class="chat" aria-live="polite"></div>
-
         <form id="askForm" class="ask-form">
           <span class="input-spark" aria-hidden="true">✦</span>
           <textarea id="question" rows="1" required aria-label="Ask BIS AI" placeholder="Ask about a product, standard, certification or BIS service..."></textarea>
           <button id="askBtn" class="send-btn" type="submit" aria-label="Send question" title="Send question">➤</button>
         </form>
-
         <div class="chips" aria-label="Suggested questions">
           <button type="button" onclick="useText('Find a standard for electrical cables')">Electrical cables</button>
           <button type="button" onclick="useText('How does BIS certification work?')">BIS certification</button>
@@ -73,39 +62,20 @@
     </section>
 
     <aside id="toolsPanel" class="tools-column" aria-label="BIS quick tools">
-      <div class="tools-heading">
-        <p class="eyebrow">BIS SERVICES</p>
-        <h2>Quick Tools</h2>
-        <p>Useful BIS services in one place.</p>
-      </div>
-
+      <div class="tools-heading"><p class="eyebrow">BIS SERVICES</p><h2>Quick Tools</h2><p>Useful BIS services in one place.</p></div>
       <section id="standards" class="tool-card standard-tool">
-        <div class="tool-icon">⌕</div>
-        <h3>Find an Indian Standard</h3>
-        <p>Search by product, category, IS number or keyword.</p>
-        <form id="standardForm" class="tool-form">
-          <input id="standardSearch" aria-label="Search Indian Standards" placeholder="E.g. electrical cables, IS 694...">
-          <button type="submit">Search</button>
-        </form>
+        <div class="tool-icon">⌕</div><h3>Find an Indian Standard</h3><p>Search by product, category, IS number or keyword.</p>
+        <form id="standardForm" class="tool-form"><input id="standardSearch" aria-label="Search Indian Standards" placeholder="E.g. electrical cables, IS 694..."><button type="submit">Search</button></form>
         <div id="standardResults" class="tool-results"></div>
       </section>
-
       <section id="certification" class="tool-card certification-tool">
-        <div class="tool-icon">▣</div>
-        <h3>Certification Guidance</h3>
-        <p>Understand the BIS product-certification journey.</p>
+        <div class="tool-icon">▣</div><h3>Certification Guidance</h3><p>Understand the BIS product-certification journey.</p>
         <button id="certificationBtn" class="tool-action" type="button">View certification steps <span>→</span></button>
         <div id="certificationResults" class="tool-results"></div>
       </section>
-
       <section id="verify" class="tool-card verify-tool">
-        <div class="tool-icon">✓</div>
-        <h3>Verify a BIS Licence</h3>
-        <p>Use a synthetic demo record or open official BIS verification information.</p>
-        <form id="verifyForm" class="tool-form">
-          <input id="license" required aria-label="BIS licence number" placeholder="E.g. CM/L-DEMO-001">
-          <button type="submit">Verify</button>
-        </form>
+        <div class="tool-icon">✓</div><h3>Verify a BIS Licence</h3><p>Use a synthetic demo record or open official BIS verification information.</p>
+        <form id="verifyForm" class="tool-form"><input id="license" required aria-label="BIS licence number" placeholder="E.g. CM/L-DEMO-001"><button type="submit">Verify</button></form>
         <div class="demo-buttons">
           <button type="button" onclick="useDemoLicense('CM/L-DEMO-001')">Demo 001</button>
           <button type="button" onclick="useDemoLicense('CM/L-DEMO-002')">Demo 002</button>
@@ -113,13 +83,8 @@
         </div>
         <div id="verifyResult" class="tool-results"></div>
       </section>
-
       <section class="help-card">
-        <div class="help-icon">?</div>
-        <div>
-          <h3>Need Help?</h3>
-          <p>Ask about standards, certification, testing, hallmarking, licences or BIS services.</p>
-        </div>
+        <div class="help-icon">?</div><div><h3>Need Help?</h3><p>Ask about standards, certification, testing, hallmarking, licences or BIS services.</p></div>
         <div class="help-prompts">
           <button type="button" onclick="useText('How do I get BIS certification?')">How do I get BIS certification?</button>
           <button type="button" onclick="useText('What standard applies to electrical cables?')">IS standard for electrical cables</button>
@@ -129,12 +94,8 @@
     </aside>
   </main>
 
-  <footer>
-    <span><strong>BIS AI Assistant</strong> · SIH26107 prototype</span>
-    <span>Demo records are synthetic · Official BIS links are provided for verification</span>
-  </footer>
-
-  <script src="script.js"></script>
+  <footer><span><strong>BIS AI Assistant</strong> · SIH26107 prototype</span><span>Demo records are synthetic · Official BIS links are provided for verification</span></footer>
+  <script src="script.js?v=20260917-final"></script>
   <script>
     (() => {
       const button = document.getElementById('themeToggle');
@@ -143,29 +104,15 @@
         document.documentElement.classList.toggle('dark-mode', dark);
         button.textContent = dark ? '☀' : '☾';
         button.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
-        button.title = dark ? 'Switch to light mode' : 'Switch theme';
       };
-      let dark = localStorage.getItem(key) === 'dark';
-      apply(dark);
-      button.addEventListener('click', () => {
-        dark = !dark;
-        localStorage.setItem(key, dark ? 'dark' : 'light');
-        apply(dark);
-      });
-
+      let dark = localStorage.getItem(key) === 'dark'; apply(dark);
+      button.addEventListener('click', () => { dark = !dark; localStorage.setItem(key, dark ? 'dark' : 'light'); apply(dark); });
       document.getElementById('question').addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' && !event.shiftKey) {
-          event.preventDefault();
-          document.getElementById('askForm').requestSubmit();
-        }
+        if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); document.getElementById('askForm').requestSubmit(); }
       });
-
-      document.querySelectorAll('.main-nav .nav-link').forEach((link) => {
-        link.addEventListener('click', () => {
-          document.querySelectorAll('.main-nav .nav-link').forEach((item) => item.classList.remove('active'));
-          link.classList.add('active');
-        });
-      });
+      document.querySelectorAll('.main-nav .nav-link').forEach((link) => link.addEventListener('click', () => {
+        document.querySelectorAll('.main-nav .nav-link').forEach((item) => item.classList.remove('active')); link.classList.add('active');
+      }));
     })();
   </script>
 </body>
