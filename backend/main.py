@@ -24,7 +24,7 @@ DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
 app = FastAPI(
     title="BIS AI Assistant API",
     description="SIH26107 prototype for Indian Standards and BIS services.",
-    version="2.3.0",
+    version="2.4.0",
 )
 
 app.add_middleware(
@@ -74,7 +74,7 @@ def quick_answer(question: str) -> Optional[str]:
     q = re.sub(r"[^a-z0-9 ]+", " ", question.lower()).strip()
 
     if q in {"hi", "hello", "hey", "hii", "hiii", "helo", "good morning", "good afternoon", "good evening"}:
-        return "Hello! 👋 I'm the BIS AI Assistant. Ask me about Indian Standards, BIS certification, testing, hallmarking, or BIS services."
+        return "Hello! 👋 I'm the BIS AI Assistant. Ask me about Indian Standards, BIS certification, testing, hallmarking, licence verification or BIS services."
     if q in {"thanks", "thank you", "thx", "thankyou"}:
         return "You're welcome! 👋"
     if q in {"bye", "goodbye", "see you"}:
@@ -101,6 +101,22 @@ def fallback_answer(question: str):
     )
 
 
+def is_bis_related(question: str, matches: list) -> bool:
+    """Keep the assistant focused on BIS instead of answering unrelated questions."""
+    if matches:
+        return True
+
+    q = question.lower()
+    bis_terms = {
+        "bis", "bureau of indian standards", "indian standard", "standards", "standard",
+        "isi", "hallmark", "hallmarking", "certification", "certified", "licence", "license",
+        "cm/l", "testing", "laboratory", "laboratories", "lab", "manak", "crs", "fmcs",
+        "product certification", "compliance", "registration", "marking", "manufacturer",
+        "scheme", "socket", "plug", "cable", "wire", "electrical appliance",
+    }
+    return any(term in q for term in bis_terms)
+
+
 GEMINI_CLIENT = None
 if GEMINI_API_KEY:
     try:
@@ -115,25 +131,34 @@ def ai_answer(question: str):
     if quick:
         return quick, []
 
+    matches = search_records(question)[:8]
+
+    if not is_bis_related(question, matches):
+        return (
+            "I'm designed specifically for BIS and Indian Standards. Ask me about BIS certification, Indian Standards, testing, hallmarking, licence verification or BIS services.",
+            [],
+        )
+
     if not GEMINI_CLIENT:
         return fallback_answer(question)
 
     try:
         from google.genai import types
 
-        matches = search_records(question)[:8]
         context = json.dumps(matches, ensure_ascii=False, indent=2)
 
         system_instruction = """
 You are the BIS AI Assistant for SIH26107.
 
-Help users understand Indian Standards, BIS certification, testing, hallmarking, licence verification and BIS services.
+Your scope is ONLY Bureau of Indian Standards (BIS), Indian Standards, BIS certification, product certification, testing laboratories, hallmarking, licence verification and BIS services.
+If the user asks an unrelated general-knowledge question, politely say that you are focused on BIS and ask them to ask a BIS-related question.
 Treat the supplied BIS knowledge-base context as the primary factual source.
 Use general model knowledge only for conversational wording, not for unsupported BIS-specific facts.
 Never invent an IS number, fee, deadline, licence status, certification requirement, laboratory, law or BIS policy.
-If the supplied knowledge base does not contain enough verified information, say so clearly instead of guessing.
+If the supplied knowledge base does not contain enough verified information for a BIS question, say so clearly instead of guessing.
+Do not start with phrases such as "I found these relevant entries" or "According to the knowledge base".
+Do not append a separate source list, URLs, citations, or source references in the answer; the application displays verified BIS sources separately below the answer.
 Keep answers concise, practical and easy to understand.
-Do not include a separate source list, URLs, citations, or phrases such as "I found these relevant entries" in the answer; the application displays verified BIS sources separately below the answer.
 For important compliance or certification decisions, tell the user to verify current information with official BIS sources.
 """
 
