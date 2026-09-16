@@ -408,6 +408,10 @@ async function verifyLicense(numberOverride = null) {
 $('verifyForm').addEventListener('submit', (event) => { event.preventDefault(); verifyLicense(); });
 function useDemoLicense(number) { openTool('verify'); $('license').value = number; verifyLicense(number); }
 
+// Wire the chat-history controls explicitly. Without these listeners the
+// buttons render correctly but do nothing when clicked.
+$('newChatBtn').addEventListener('click', newChat);
+$('clearHistoryBtn').addEventListener('click', clearHistory);
 $('closeHistory').addEventListener('click', () => setMobileHistory(false));
 $('openHistory').addEventListener('click', () => setMobileHistory(true));
 
