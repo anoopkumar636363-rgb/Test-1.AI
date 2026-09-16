@@ -76,11 +76,25 @@ html, body {
   display: none !important;
 }
 
+/* The reopen control is a floating UI element, never a grid item. */
 .history-reopen {
   display: none !important;
+  position: fixed !important;
+  left: 16px !important;
+  top: 88px !important;
+  width: 42px !important;
+  height: 42px !important;
+  z-index: 9999 !important;
+  place-items: center !important;
+  border: 1px solid #dce4ee !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+  color: #1c579c !important;
+  box-shadow: 0 6px 18px #00000018 !important;
+  font-size: 20px !important;
+  cursor: pointer !important;
 }
 
-/* Closed: the history column contracts and the assistant expands smoothly. */
 body.history-closed .workspace {
   grid-template-columns: 0 minmax(0, 1fr) 390px !important;
 }
@@ -101,7 +115,7 @@ body.history-closed .history-reopen {
   top: 88px !important;
   width: 42px !important;
   height: 42px !important;
-  z-index: 200 !important;
+  z-index: 9999 !important;
   place-items: center !important;
   border: 1px solid #dce4ee !important;
   border-radius: 10px !important;
@@ -114,9 +128,9 @@ body.history-closed .history-reopen {
   animation: historyButtonIn .25s ease both !important;
 }
 
-body:not(.history-closed) .history-reopen {
-  opacity: 0 !important;
-  pointer-events: none !important;
+body.history-closed .history-reopen:hover {
+  transform: translateX(2px);
+  box-shadow: 0 8px 22px #00000024;
 }
 
 @keyframes historyButtonIn {
@@ -124,7 +138,11 @@ body:not(.history-closed) .history-reopen {
   to { opacity: 1; transform: translateX(0); }
 }
 
-/* Reopening: the history panel itself slides in from the left while the grid expands. */
+body:not(.history-closed) .history-reopen {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 body:not(.history-closed) .history-panel {
   animation: historyPanelIn .34s cubic-bezier(.22,.61,.36,1) both;
 }
@@ -134,7 +152,7 @@ body:not(.history-closed) .history-panel {
   to { opacity: 1; transform: translateX(0); }
 }
 
-/* Keep the desktop header/content proportions even when browser zoom changes the CSS viewport. */
+/* Keep the desktop proportions when the browser viewport is narrower. */
 @media (max-width: 1150px) {
   .workspace {
     grid-template-columns: 280px minmax(0, 1fr) 350px !important;
@@ -149,5 +167,106 @@ body:not(.history-closed) .history-panel {
   }
   .topbar nav {
     gap: 10px !important;
+  }
+}
+
+/* Desktop layout remains authoritative even on touch-capable laptops. */
+@media (min-width: 901px) {
+  html, body {
+    width: auto;
+    max-width: none;
+    overflow-x: visible;
+  }
+
+  .topbar {
+    height: 72px;
+    min-height: 72px;
+    width: auto;
+    padding: 0 34px;
+    gap: 28px;
+    position: sticky;
+    top: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .topbar nav {
+    display: flex;
+  }
+
+  .mobile-history-btn,
+  .mobile-tools-btn {
+    display: none !important;
+  }
+
+  .workspace {
+    display: grid !important;
+    grid-template-columns: 300px minmax(430px, 1fr) 390px !important;
+    width: auto;
+    max-width: 1550px;
+    height: calc(100vh - 72px);
+    min-height: 0;
+    overflow: hidden;
+    margin: 0 auto;
+  }
+
+  .history-panel {
+    position: static !important;
+    display: flex !important;
+    width: auto !important;
+    height: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    overflow-y: auto;
+  }
+
+  .assistant-column {
+    width: auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .tools-column {
+    position: static !important;
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    overflow-y: auto;
+    border-left: 1px solid #e2e8f0;
+    border-top: 0;
+  }
+
+  .tools-close {
+    display: none !important;
+  }
+
+  /* Explicitly keep the reopen button fixed so it can never create a grid column. */
+  .history-reopen {
+    position: fixed !important;
+  }
+
+  .workspace {
+    transition: grid-template-columns .28s ease;
+  }
+
+  body.history-closed .workspace {
+    grid-template-columns: 0 minmax(430px, 1fr) 390px !important;
+  }
+
+  body.history-closed .history-panel {
+    display: flex !important;
+    opacity: 0;
+    transform: translateX(-18px);
+    pointer-events: none;
+    padding-left: 0;
+    padding-right: 0;
+    border-right-color: transparent;
+  }
+
+  body.history-closed .history-reopen {
+    display: grid !important;
+    position: fixed !important;
   }
 }
