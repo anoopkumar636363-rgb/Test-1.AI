@@ -7,6 +7,40 @@
     "Hallmarking",
     "Consumer services"
   ],
+  "knowledge": [
+    {
+      "id": "BIS-ABOUT-001",
+      "title": "About the Bureau of Indian Standards",
+      "summary": "BIS is India's National Standards Body established under the BIS Act, 2016. Its activities include standards formulation, product certification, compulsory registration, foreign manufacturers certification, hallmarking, laboratory services, consumer activities, training and information services.",
+      "keywords": ["bis", "bureau of indian standards", "national standards body", "certification", "hallmarking", "laboratory", "standards"],
+      "source": "BIS — About BIS",
+      "source_url": "https://www.bis.gov.in/the-bureau/about-bis/?lang=en"
+    },
+    {
+      "id": "BIS-KYS-001",
+      "title": "Know Your Standard",
+      "summary": "BIS's Know Your Standard feature lets users search for an Indian Standard by IS number or keyword and access related information such as the standard document, amendments, gazette notifications, scheme of testing and inspection, licence information and laboratories associated with the standard.",
+      "keywords": ["know your standard", "search standard", "is number", "keyword", "amendment", "gazette", "testing inspection", "licence", "laboratory"],
+      "source": "BIS — Know Your Standard",
+      "source_url": "https://www.bis.gov.in/know-your-standard/?lang=en"
+    },
+    {
+      "id": "BIS-LIC-001",
+      "title": "BIS Product Certification Licence — General Process",
+      "summary": "BIS states that the product certification process starts by identifying the applicable Indian Standard. Manufacturers then assess the required manufacturing infrastructure, process controls, quality control and testing capabilities. BIS grants a licence after the applicable assessment and conformity requirements are successfully met. Applications are accepted online through the BIS portal.",
+      "keywords": ["bis licence", "product certification", "apply for licence", "manufacturing infrastructure", "process controls", "quality control", "testing", "conformity assessment", "manakonline"],
+      "source": "BIS — Apply For License",
+      "source_url": "https://www.bis.gov.in/apply-for-a-license/?lang=en"
+    },
+    {
+      "id": "BIS-STANDARDS-001",
+      "title": "BIS Standards Search Portal",
+      "summary": "The official BIS standards portal provides a Know Your Standards search where users can search Indian Standards by number or keywords. The portal also provides links for published standards, new standards, revised standards and other standards-related resources.",
+      "keywords": ["standards portal", "published standards", "new standards", "revised standards", "search indian standards", "standard number", "keywords"],
+      "source": "BIS Standards Portal",
+      "source_url": "https://standards.bis.gov.in/"
+    }
+  ],
   "standards": [],
   "services": [],
   "labs": [],
