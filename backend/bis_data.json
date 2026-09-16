@@ -39,10 +39,168 @@
       "keywords": ["standards portal", "published standards", "new standards", "revised standards", "search indian standards", "standard number", "keywords"],
       "source": "BIS Standards Portal",
       "source_url": "https://standards.bis.gov.in/"
+    },
+    {
+      "id": "BIS-CARE-001",
+      "title": "BIS Care licence and standards verification",
+      "summary": "The official BIS Care app supports Verify Licence Details for checking product authenticity, Know Your Standards for standards, licences and laboratories, Verify HUID for hallmarked jewellery, and Verify R-Number under CRS for covered electronic products.",
+      "keywords": ["bis care", "verify licence", "licence details", "huid", "r-number", "crs", "consumer"],
+      "source": "BIS — BIS Care App",
+      "source_url": "https://www.bis.gov.in/bis-apps/?lang=en"
     }
   ],
-  "standards": [],
-  "services": [],
-  "labs": [],
-  "demo_licenses": []
+  "standards": [
+    {
+      "id": "IS 694:2010",
+      "title": "PVC insulated unsheathed and sheathed cables/cords",
+      "product": "Electrical cables",
+      "category": "Cables, conductors, wires and accessories",
+      "summary": "Polyvinyl chloride insulated unsheathed and sheathed cables/cords with rigid and flexible conductor for rated voltages up to and including 1 100 V. The BIS standard record identifies this standard as mandatory certification.",
+      "keywords": ["is 694", "694", "electrical cables", "pvc cable", "power cable", "wires", "cables"],
+      "source": "BIS Indian Standard Details — IS 694:2010",
+      "source_url": "https://services.bis.gov.in/php/BIS_2.0/bisconnect/ISL/is_details?IDS=MTM4Mjk%3D"
+    },
+    {
+      "id": "IS 302 (Part 1):2024",
+      "title": "Household and Similar Electrical Appliances — Safety Part 1",
+      "product": "Household and similar electrical appliances",
+      "category": "Electrical appliances and accessories",
+      "summary": "IS 302 (Part 1):2024 covers general safety requirements for household and similar electrical appliances and is aligned with IEC 60335-1:2020 under dual numbering.",
+      "keywords": ["is 302", "302", "electrical appliances", "household appliances", "safety", "appliance"],
+      "source": "BIS Indian Standard Details — IS 302 (Part 1):2024",
+      "source_url": "https://services.bis.gov.in/php/BIS_2.0/bisconnect/standard_review/Standard_review/Isdetails?ID=MzE5MDE%3D"
+    },
+    {
+      "id": "IS 1293:2019",
+      "title": "Plugs and Socket-Outlets for Household and Similar Purposes",
+      "product": "Plugs and socket-outlets",
+      "category": "Electrical accessories",
+      "summary": "IS 1293:2019 covers plugs and socket-outlets for household and similar purposes with rated voltage up to and including 250 V and rated current up to and including 16 A.",
+      "keywords": ["is 1293", "1293", "plug", "socket", "socket outlet", "electrical accessories"],
+      "source": "BIS Standards Portal — IS 1293:2019",
+      "source_url": "https://standards.bis.gov.in/website/standard-details?encryptedId=eyJpdiI6InJ2YXZScTZJN3pFOFZzbzRnRy9FK1E9PSIsInZhbHVlIjoiakFMNWRrbXphd213TlFTclpUMG9GZz09IiwibWFjIjoiODJjMjY0NmQ2NjE4Y2RmNmZlMzNhOGQ0MTJiYTIxYTE2OTQ0MzBmOWYxZDM2Zjc3Yjk3NmRjNmY1Y2RiN2JmNCIsInRhZyI6IiJ9"
+    },
+    {
+      "id": "IS 7098 (Part 1):1988",
+      "title": "Crosslinked polyethylene insulated PVC sheathed cables",
+      "product": "XLPE insulated cables",
+      "category": "Cables and conductors",
+      "summary": "Specification for crosslinked polyethylene insulated PVC sheathed cables for working voltages up to and including 1100 volts.",
+      "keywords": ["is 7098", "7098", "xlpe", "cable", "1100 volts", "power cables"],
+      "source": "BIS LIMS — IS-wise laboratory scope",
+      "source_url": "https://lims.bis.gov.in/home_lab_scope/311/"
+    },
+    {
+      "id": "IS 14772:2020",
+      "title": "Boxes and Enclosures for Electrical Accessories",
+      "product": "Electrical boxes and enclosures",
+      "category": "Electrical accessories",
+      "summary": "Boxes and enclosures for electrical accessories for household and similar fixed electrical installations — general requirements.",
+      "keywords": ["is 14772", "14772", "boxes", "enclosures", "electrical accessories"],
+      "source": "BIS Standards Portal",
+      "source_url": "https://standards.bis.gov.in/"
+    }
+  ],
+  "certification": [
+    {
+      "id": "CERT-01",
+      "title": "Identify the applicable Indian Standard",
+      "summary": "BIS says the application process starts with identification of the Indian Standard applicable to the product.",
+      "source": "BIS — Apply For License",
+      "source_url": "https://www.bis.gov.in/apply-for-a-license/?lang=en"
+    },
+    {
+      "id": "CERT-02",
+      "title": "Review manufacturing and testing capability",
+      "summary": "Manufacturers are expected to assess manufacturing infrastructure, process controls, quality control and testing capabilities against the relevant standard.",
+      "source": "BIS — Apply For License",
+      "source_url": "https://www.bis.gov.in/apply-for-a-license/?lang=en"
+    },
+    {
+      "id": "CERT-03",
+      "title": "Assessment and conformity",
+      "summary": "BIS states that assessment of manufacturing facilities and conformity to the relevant standard can involve third-party laboratory testing, testing at the manufacturing premises, or a combination, depending on the applicable route.",
+      "source": "BIS — Apply For License",
+      "source_url": "https://www.bis.gov.in/apply-for-a-license/?lang=en"
+    },
+    {
+      "id": "CERT-04",
+      "title": "Apply online through the BIS portal",
+      "summary": "BIS states that applications and payments for product certification are accepted online through its portal.",
+      "source": "BIS — Apply For License",
+      "source_url": "https://www.bis.gov.in/apply-for-a-license/?lang=en"
+    }
+  ],
+  "labs": [
+    {
+      "name": "Dynamic Test Laboratories LLP",
+      "location": "Sonipat, Haryana",
+      "summary": "BIS LIMS lists laboratory scope entries including IS 302 (Part 1):2024 and other electrical-appliance standards.",
+      "source": "BIS LIMS",
+      "source_url": "https://lims.bis.gov.in/home_lab_scope/2254/"
+    },
+    {
+      "name": "Teknolab Quality Services Private Limited",
+      "location": "Faridabad, Haryana",
+      "summary": "BIS LIMS lists laboratory scope entries including multiple IS 302 appliance standards.",
+      "source": "BIS LIMS",
+      "source_url": "https://lims.bis.gov.in/home_lab_scope/2207/"
+    }
+  ],
+  "services": [
+    {
+      "title": "Know Your Standard",
+      "summary": "Search Indian Standards by IS number or keyword and explore related standards information.",
+      "source": "BIS",
+      "source_url": "https://www.bis.gov.in/know-your-standard/?lang=en"
+    },
+    {
+      "title": "Product Certification Process",
+      "summary": "Read official guidance for BIS product certification and Scheme-I procedures.",
+      "source": "BIS",
+      "source_url": "https://www.bis.gov.in/product-certification/product-certification-process/?lang=en"
+    },
+    {
+      "title": "BIS Care App",
+      "summary": "Official consumer app with licence, HUID, R-number and standards-related verification features.",
+      "source": "BIS",
+      "source_url": "https://www.bis.gov.in/bis-apps/?lang=en"
+    }
+  ],
+  "demo_licenses": [
+    {
+      "license_number": "CM/L-DEMO-001",
+      "status": "Active — Demo",
+      "product": "PVC insulated electrical cable",
+      "standard": "IS 694:2010",
+      "manufacturer": "Demo Electrical Industries Pvt. Ltd.",
+      "scope": "Demonstration record only",
+      "note": "This is a synthetic SIH demonstration record. It is not a real BIS licence."
+    },
+    {
+      "license_number": "CM/L-DEMO-002",
+      "status": "Expired — Demo",
+      "product": "Household electrical appliance",
+      "standard": "IS 302 (Part 1):2024",
+      "manufacturer": "Demo Home Appliances Ltd.",
+      "scope": "Demonstration record only",
+      "note": "This is a synthetic SIH demonstration record. It is not a real BIS licence."
+    },
+    {
+      "license_number": "CM/L-DEMO-003",
+      "status": "Suspended — Demo",
+      "product": "Plugs and socket-outlets",
+      "standard": "IS 1293:2019",
+      "manufacturer": "Demo Electrical Accessories Ltd.",
+      "scope": "Demonstration record only",
+      "note": "This is a synthetic SIH demonstration record. It is not a real BIS licence."
+    }
+  ],
+  "official_links": {
+    "bis_care": "https://www.bis.gov.in/bis-apps/?lang=en",
+    "know_your_standard": "https://www.bis.gov.in/know-your-standard/?lang=en",
+    "certification_process": "https://www.bis.gov.in/product-certification/product-certification-process/?lang=en",
+    "apply_for_license": "https://www.bis.gov.in/apply-for-a-license/?lang=en",
+    "standards_portal": "https://standards.bis.gov.in/"
+  }
 }
