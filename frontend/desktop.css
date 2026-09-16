@@ -1,0 +1,153 @@
+/* Desktop-only layout override. Mobile styling is intentionally disabled for this PC build. */
+
+html, body {
+  width: 100%;
+  min-width: 100%;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+.topbar {
+  height: 72px !important;
+  min-height: 72px !important;
+  width: 100% !important;
+  padding: 0 34px !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.topbar nav {
+  display: flex !important;
+  height: 100% !important;
+  align-items: center !important;
+  gap: 27px !important;
+}
+
+.workspace {
+  display: grid !important;
+  grid-template-columns: 300px minmax(0, 1fr) 390px !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: calc(100vh - 72px) !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  transition: grid-template-columns .34s cubic-bezier(.22,.61,.36,1) !important;
+}
+
+.history-panel {
+  display: flex !important;
+  position: relative !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: auto !important;
+  padding: 27px 18px !important;
+  overflow: hidden !important;
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity .20s ease, transform .34s cubic-bezier(.22,.61,.36,1), padding .34s ease !important;
+  z-index: 2;
+}
+
+.assistant-column {
+  min-width: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 48px 42px 30px !important;
+  overflow: hidden !important;
+}
+
+.tools-column {
+  display: block !important;
+  position: relative !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: auto !important;
+  padding: 27px 20px 45px !important;
+  overflow-y: auto !important;
+  border-left: 1px solid #e2e8f0 !important;
+  border-top: 0 !important;
+}
+
+.tools-close {
+  display: none !important;
+}
+
+.history-reopen {
+  display: none !important;
+}
+
+/* Closed: the history column contracts and the assistant expands smoothly. */
+body.history-closed .workspace {
+  grid-template-columns: 0 minmax(0, 1fr) 390px !important;
+}
+
+body.history-closed .history-panel {
+  opacity: 0;
+  transform: translateX(-100%);
+  pointer-events: none;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  border-right-color: transparent !important;
+}
+
+body.history-closed .history-reopen {
+  display: grid !important;
+  position: fixed !important;
+  left: 16px !important;
+  top: 88px !important;
+  width: 42px !important;
+  height: 42px !important;
+  z-index: 200 !important;
+  place-items: center !important;
+  border: 1px solid #dce4ee !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+  color: #1c579c !important;
+  box-shadow: 0 6px 18px #00000018 !important;
+  font-size: 20px !important;
+  cursor: pointer !important;
+  opacity: 1 !important;
+  animation: historyButtonIn .25s ease both !important;
+}
+
+body:not(.history-closed) .history-reopen {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+@keyframes historyButtonIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Reopening: the history panel itself slides in from the left while the grid expands. */
+body:not(.history-closed) .history-panel {
+  animation: historyPanelIn .34s cubic-bezier(.22,.61,.36,1) both;
+}
+
+@keyframes historyPanelIn {
+  from { opacity: 0; transform: translateX(-100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Keep the desktop header/content proportions even when browser zoom changes the CSS viewport. */
+@media (max-width: 1150px) {
+  .workspace {
+    grid-template-columns: 280px minmax(0, 1fr) 350px !important;
+  }
+  .assistant-column {
+    padding-left: 28px !important;
+    padding-right: 28px !important;
+  }
+  .topbar {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+  .topbar nav {
+    gap: 10px !important;
+  }
+}
