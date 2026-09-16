@@ -26,7 +26,7 @@
       <div class="history-head">
         <div>
           <h2>Chat History</h2>
-          <p>Your conversations stay in this browser.</p>
+          <p>Conversations stay only in this session.</p>
         </div>
         <button id="closeHistory" class="icon-btn" type="button" aria-label="Close chat history">×</button>
       </div>
@@ -49,7 +49,7 @@
         <div id="chat" class="chat" aria-live="polite"></div>
         <form id="askForm" class="ask-form">
           <span class="input-spark">✦</span>
-          <textarea id="question" rows="1" required placeholder="Ask about a product, standard, certification or BIS service..."></textarea>
+          <textarea id="question" rows="1" required placeholder="Ask about a product, standard, certification or BIS service..." aria-label="Ask BIS AI" onkeydown="if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); if (!this.form.querySelector('#askBtn').disabled) this.form.requestSubmit(); }"></textarea>
           <button class="send-btn" id="askBtn" type="submit" aria-label="Send question">➤</button>
         </form>
         <div class="chips">
