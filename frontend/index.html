@@ -8,53 +8,119 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="#home"><span class="brand-mark">BIS</span><span><b>BIS AI Assistant</b><small>Indian Standards & Services</small></span></a>
-    <nav><a href="#assistant">Assistant</a><a href="#standards">Standards</a><a href="#certification">Certification</a><a href="#verify">Verify</a></nav>
+    <a class="brand" href="#assistant" aria-label="BIS AI Assistant home">
+      <span class="brand-mark">BIS</span>
+      <span><b>BIS AI Assistant</b><small>Indian Standards & Services</small></span>
+    </a>
+    <nav>
+      <a class="nav-link active" href="#assistant">Assistant</a>
+      <a class="nav-link" href="#standards">Standards</a>
+      <a class="nav-link" href="#certification">Certification</a>
+      <a class="nav-link" href="#verify">Verify</a>
+    </nav>
     <span id="apiBadge" class="badge">● Connecting</span>
   </header>
 
-  <main>
-    <section id="home" class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow">SIH26107 · AI-POWERED INTELLIGENT ASSISTANT</p>
-        <h1>Understand Indian Standards. <span>Get BIS guidance.</span></h1>
-        <p>Ask questions about products, standards, certification, testing and consumer services in plain language.</p>
-        <div class="quick-actions"><button class="primary" onclick="focusAssistant()">Ask the assistant →</button><button class="secondary" onclick="document.querySelector('#standards').scrollIntoView()">Explore standards</button></div>
-        <div class="trust"><span>🔎 Product → Standard</span><span>📋 Certification guidance</span><span>🧪 Testing guidance</span></div>
+  <main class="workspace">
+    <aside id="historyPanel" class="history-panel">
+      <div class="history-head">
+        <div>
+          <h2>Chat History</h2>
+          <p>Your conversations stay in this browser.</p>
+        </div>
+        <button id="closeHistory" class="icon-btn" type="button" aria-label="Close chat history">×</button>
       </div>
-      <div class="hero-card"><div class="bot-icon">✦</div><h3>How can I help?</h3><p>Try a question like:</p><button class="suggestion" onclick="usePrompt(this)">What BIS information do I need for an electrical product?</button><button class="suggestion" onclick="usePrompt(this)">How does BIS certification work?</button><button class="suggestion" onclick="usePrompt(this)">How can I find a testing laboratory?</button></div>
-    </section>
+      <button id="newChatBtn" class="new-chat" type="button">＋ New chat</button>
+      <div id="historyList" class="history-list"></div>
+      <button id="clearHistoryBtn" class="clear-history" type="button">🗑 Clear all chats</button>
+    </aside>
 
-    <section id="assistant" class="section assistant-section">
-      <div class="section-title"><div><p class="eyebrow">INTELLIGENT ASSISTANT</p><h2>Ask BIS AI</h2></div><span class="muted">Powered by the connected BIS knowledge base</span></div>
+    <section class="assistant-column">
+      <div class="assistant-heading">
+        <div>
+          <p class="eyebrow">INTELLIGENT ASSISTANT</p>
+          <h1>Ask BIS AI</h1>
+          <p>Ask about Indian Standards, certification, testing, hallmarking, licences and BIS services.</p>
+        </div>
+        <button id="openHistory" class="history-toggle" type="button">☰ History</button>
+      </div>
+
       <div class="chat-card">
-        <div id="chat" class="chat"><div class="message bot"><b>BIS AI</b><p>Hello! 👋 Ask me about Indian Standards, BIS services, certification or testing.</p></div></div>
-        <form id="askForm" class="ask-form"><textarea id="question" rows="2" required placeholder="Ask about a product, standard, certification or BIS service..."></textarea><button class="primary" id="askBtn">Ask AI</button></form>
-        <div class="chips"><button type="button" onclick="useText('Find a standard for electrical cables')">Electrical cables</button><button type="button" onclick="useText('Explain BIS certification')">BIS certification</button><button type="button" onclick="useText('How do I verify a BIS licence?')">Verify licence</button><button type="button" onclick="useText('Find testing laboratory information')">Testing labs</button></div>
+        <div id="chat" class="chat" aria-live="polite"></div>
+        <form id="askForm" class="ask-form">
+          <span class="input-spark">✦</span>
+          <textarea id="question" rows="1" required placeholder="Ask about a product, standard, certification or BIS service..."></textarea>
+          <button class="send-btn" id="askBtn" type="submit" aria-label="Send question">➤</button>
+        </form>
+        <div class="chips">
+          <button type="button" onclick="useText('Find a standard for electrical cables')">Electrical cables</button>
+          <button type="button" onclick="useText('How does BIS certification work?')">BIS certification</button>
+          <button type="button" onclick="useText('How do I verify a BIS licence?')">Verify licence</button>
+          <button type="button" onclick="useText('Find testing laboratory information')">Testing labs</button>
+          <button type="button" onclick="useText('What is the ISI mark?')">ISI mark</button>
+        </div>
       </div>
     </section>
 
-    <section id="standards" class="section">
-      <div class="section-title"><div><p class="eyebrow">STANDARD FINDER</p><h2>Find an Indian Standard</h2></div></div>
-      <div class="search-box"><input id="standardSearch" placeholder="Search by product, category, IS number or keyword" /><button class="primary" onclick="searchStandards()">Search</button></div>
-      <div id="standardResults" class="result-grid"></div>
-    </section>
+    <aside class="tools-column">
+      <div class="tools-heading">
+        <h2>Quick Tools</h2>
+        <p>Common BIS services at your fingertips</p>
+      </div>
 
-    <section id="certification" class="section split">
-      <div><p class="eyebrow">BIS CERTIFICATION</p><h2>Understand the journey</h2><p class="muted">The assistant will explain applicable processes from verified BIS source material instead of guessing requirements.</p></div>
-      <div class="steps"><div><b>01</b><span>Identify the applicable standard</span></div><div><b>02</b><span>Check the applicable conformity route</span></div><div><b>03</b><span>Complete required testing and documentation</span></div><div><b>04</b><span>Follow the relevant BIS application process</span></div></div>
-    </section>
+      <section id="standards" class="tool-card standard-tool">
+        <div class="tool-icon">⌕</div>
+        <h3>Find an Indian Standard</h3>
+        <p>Search by product, category, IS number or keyword.</p>
+        <form id="standardForm" class="tool-form">
+          <input id="standardSearch" placeholder="E.g. electrical cables, IS 694..." aria-label="Search Indian Standards" />
+          <button type="submit">⌕ Search</button>
+        </form>
+        <div id="standardResults" class="tool-results"></div>
+      </section>
 
-    <section id="verify" class="section verify-section">
-      <div><p class="eyebrow">CONSUMER TOOL</p><h2>Verify a BIS licence</h2><p class="muted">Live BIS registry integration will be connected later.</p></div>
-      <form id="verifyForm" class="verify-form"><input id="license" required placeholder="Enter licence number" /><button class="primary">Verify</button></form>
-      <div id="verifyResult" class="verify-result"></div>
-    </section>
+      <section id="certification" class="tool-card certification-tool">
+        <div class="tool-icon">▣</div>
+        <h3>Certification Guidance</h3>
+        <p>Understand the BIS product-certification journey.</p>
+        <button id="certificationBtn" class="tool-action" type="button">View certification steps →</button>
+        <div id="certificationResults" class="tool-results"></div>
+      </section>
 
-    <section class="section service-grid"><div class="service"><span>🔎</span><h3>Product search</h3><p>Describe a product and retrieve relevant verified knowledge-base entries.</p></div><div class="service"><span>📚</span><h3>Standards Q&A</h3><p>Ask questions and receive source-aware answers.</p></div><div class="service"><span>🏭</span><h3>Industry guidance</h3><p>Help businesses understand standards and next steps.</p></div><div class="service"><span>👤</span><h3>Consumer guidance</h3><p>Explain BIS concepts in simple language.</p></div></section>
+      <section id="verify" class="tool-card verify-tool">
+        <div class="tool-icon">✓</div>
+        <h3>Verify a BIS Licence</h3>
+        <p>Try a safe prototype demo record or open official BIS verification.</p>
+        <form id="verifyForm" class="tool-form">
+          <input id="license" required placeholder="E.g. CM/L-DEMO-001" aria-label="BIS licence number" />
+          <button type="submit">✓ Verify</button>
+        </form>
+        <div class="demo-buttons">
+          <button type="button" onclick="useDemoLicense('CM/L-DEMO-001')">Demo 001</button>
+          <button type="button" onclick="useDemoLicense('CM/L-DEMO-002')">Demo 002</button>
+          <button type="button" onclick="useDemoLicense('CM/L-DEMO-003')">Demo 003</button>
+        </div>
+        <div id="verifyResult" class="tool-results"></div>
+      </section>
+
+      <section class="help-card">
+        <div class="help-icon">?</div>
+        <h3>Need Help?</h3>
+        <p>You can ask about Indian Standards, certification, testing, hallmarking, licences or BIS services.</p>
+        <div class="help-prompts">
+          <button type="button" onclick="useText('How do I get BIS certification?')">How do I get BIS certification?</button>
+          <button type="button" onclick="useText('What standard applies to electrical cables?')">IS standard for electrical cables</button>
+          <button type="button" onclick="useDemoLicense('CM/L-DEMO-001')">Verify demo licence</button>
+        </div>
+      </section>
+    </aside>
   </main>
 
-  <footer><b>BIS AI Assistant</b> · SIH26107 prototype · Verified BIS data will be added before the final submission.</footer>
+  <footer>
+    <span><b>BIS AI Assistant</b> · SIH26107 prototype</span>
+    <span>Demo records are synthetic · Official BIS links are provided for verification</span>
+  </footer>
+
   <script src="script.js"></script>
 </body>
 </html>
