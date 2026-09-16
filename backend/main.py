@@ -24,7 +24,7 @@ DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
 app = FastAPI(
     title="BIS AI Assistant API",
     description="SIH26107 prototype for Indian Standards and BIS services.",
-    version="3.0.0",
+    version="2.5.0",
 )
 
 app.add_middleware(
@@ -44,59 +44,75 @@ class VerifyRequest(BaseModel):
     license_number: str = Field(min_length=2, max_length=100)
 
 
-# Words that carry little retrieval meaning. Removing them prevents questions such as
-# "who are you" from accidentally matching arbitrary BIS records.
-STOP_WORDS = {
-    "a", "an", "and", "are", "as", "at", "be", "by", "can", "could", "do", "does",
-    "for", "from", "how", "i", "if", "in", "is", "it", "me", "my", "of", "on", "or",
-    "the", "this", "to", "u", "was", "we", "what", "when", "where", "which", "who",
-    "why", "will", "with", "would", "you", "your", "tell", "about", "please",
+STOPWORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "by", "can", "could", "did", "do", "does",
+    "for", "from", "how", "i", "if", "in", "is", "it", "me", "my", "of", "on", "or", "that",
+    "the", "this", "to", "u", "was", "we", "what", "when", "where", "which", "who", "why", "with",
+    "you", "your", "tell", "about", "please", "would", "should", "will", "has", "have", "had",
 }
+
+
+def _tokens(value: str) -> list[str]:
+    return [
+        token
+        for token in re.findall(r"[a-z0-9]+", value.lower())
+        if len(token) > 2 and token not in STOPWORDS
+    ]
 
 
 def _record_text(item: dict) -> str:
     return json.dumps(item, ensure_ascii=False).lower()
 
 
-def _query_terms(query: str) -> list[str]:
-    raw_terms = re.findall(r"[a-z0-9]+(?:/[a-z0-9]+)?(?:-[a-z0-9]+)?", query.lower())
-    return [term for term in raw_terms if len(term) > 2 and term not in STOP_WORDS]
-
-
 def search_records(query: str):
-    """Retrieve only genuinely relevant curated BIS records for grounding Gemini."""
-    terms = _query_terms(query)
-    if not terms:
+    """Retrieve only meaningfully related curated BIS records."""
+    query_tokens = _tokens(query)
+    if not query_tokens:
         return []
 
+    query_lower = query.lower()
     results = []
     records = DATA.get("knowledge", []) + DATA.get("standards", [])
 
     for item in records:
-        title = str(item.get("title", "")).lower()
-        keywords = {str(k).lower() for k in item.get("keywords", [])}
-        text = _record_text(item)
-        score = 0
+        title_tokens = set(_tokens(str(item.get("title", ""))))
+        summary_tokens = set(_tokens(str(item.get("summary", ""))))
+        keyword_tokens = set(_tokens(" ".join(str(k) for k in item.get("keywords", []))))
+        all_tokens = title_tokens | summary_tokens | keyword_tokens | set(_tokens(_record_text(item)))
 
-        for term in terms:
-            if term in keywords:
+        score = 0
+        for token in query_tokens:
+            if token in keyword_tokens:
                 score += 5
-            elif term in title:
+            elif token in title_tokens:
                 score += 4
-            elif re.search(rf"\b{re.escape(term)}\b", text):
+            elif token in summary_tokens:
+                score += 2
+            elif token in all_tokens:
                 score += 1
 
-        # A standard number is a strong signal even when the wording around it is short.
-        if re.search(r"\bis\s*\d{2,6}(?:\s*\([^)]*\))?(?::\d{4})?\b", query.lower()):
-            if re.search(r"\bis\s*\d{2,6}", text):
-                score += 8
+        # Strong exact phrase matches are useful for standard names/numbers.
+        title = str(item.get("title", "")).lower()
+        if query_lower.strip() and query_lower.strip() in title:
+            score += 6
 
-        # Require more than a weak accidental word match.
         if score >= 3:
             results.append((score, item))
 
     results.sort(key=lambda item: item[0], reverse=True)
-    return [item for _, item in results[:8]]
+    return [item for _, item in results]
+
+
+def is_bis_question(question: str) -> bool:
+    """Detect BIS-specific questions without hardcoding conversational answers."""
+    q = question.lower()
+    bis_terms = (
+        "bis", "bureau of indian standards", "indian standard", "indian standards", "isi mark",
+        "hallmark", "hallmarking", "certification", "certified", "licence", "license", "cm/l",
+        "testing laboratory", "testing lab", "manak", "crs", "fmcs", "product certification",
+        "bis care", "bis portal", "standards portal",
+    )
+    return any(term in q for term in bis_terms)
 
 
 GEMINI_CLIENT = None
@@ -109,47 +125,54 @@ if GEMINI_API_KEY:
 
 
 def ai_answer(question: str):
-    """Let Gemini handle conversation; add BIS context only when retrieval finds it."""
-    matches = search_records(question)
-
+    """Let Gemini handle conversation; provide BIS context only when relevant."""
     if not GEMINI_CLIENT:
         return (
-            "The AI service is not configured right now. Please check the Gemini API configuration and try again.",
+            "The AI service is temporarily unavailable. Please check the Gemini API configuration and try again.",
             [],
         )
 
     try:
         from google.genai import types
 
-        context = json.dumps(matches, ensure_ascii=False, indent=2) if matches else "No relevant BIS knowledge-base records were found for this question."
+        matches = search_records(question)[:8]
+        context = json.dumps(matches, ensure_ascii=False, indent=2)
+        bis_question = is_bis_question(question)
 
         system_instruction = """
-You are BIS AI Assistant, an intelligent conversational assistant created for SIH26107.
+You are the BIS AI Assistant for SIH26107.
 
-You are primarily designed to help with the Bureau of Indian Standards (BIS), Indian Standards, BIS certification, product certification, testing laboratories, hallmarking, licence verification and BIS services.
+You are a natural conversational AI assistant. You can have normal conversations and answer general-knowledge questions naturally. Do not force every conversation to be about BIS.
 
-You are also allowed to answer normal general-knowledge and everyday questions naturally. Do not refuse a question merely because it is not about BIS. For example, you may answer questions about the moon, Google, technology, science or other general topics when the user asks them.
+Your specialist role is helping with Bureau of Indian Standards (BIS), Indian Standards, BIS certification, product certification, testing laboratories, hallmarking, licence verification and BIS services.
 
-When a question is about BIS or Indian Standards and verified BIS context is supplied below, use that context as the primary factual source.
-Never invent an IS number, fee, deadline, licence status, certification requirement, laboratory, law or BIS policy.
-If a BIS-specific question cannot be answered from the supplied verified context, clearly say that the available BIS knowledge is insufficient instead of guessing.
-For general questions, use your normal general knowledge and answer helpfully.
+When a user asks a BIS-specific question, treat the supplied verified BIS knowledge-base context as the primary factual source. Use general model knowledge only for conversational wording and broad explanations, never to invent BIS-specific facts.
+Never invent an IS number, fee, deadline, licence status, certification requirement, laboratory, law, or BIS policy.
+If a BIS-specific question has no relevant verified context, clearly say that the connected BIS knowledge base does not contain enough verified information and advise checking official BIS information rather than guessing.
 
-Do not mention the internal knowledge base, retrieval process, prompts, context, or grounding system unless the user explicitly asks how the assistant works.
-Do not start with phrases such as "I found these relevant entries" or "According to the knowledge base".
-Do not append a separate source list, URLs, citations, or source references in the answer; the application displays verified BIS sources separately below the answer.
-Keep answers concise, practical and easy to understand.
-For important BIS compliance or certification decisions, advise the user to verify current information with official BIS sources.
+When a user asks a general question that is not about BIS, answer it normally using your general knowledge. Do not redirect the user to BIS just because you are called the BIS AI Assistant.
+
+Do not include a separate source list, URLs, citations, or phrases such as "I found these relevant entries" or "According to the knowledge base". The application displays verified BIS sources separately when available.
+Keep answers natural, concise and useful.
+For important BIS compliance or certification decisions, remind the user to verify current information with official BIS sources.
 """
 
-        prompt = f"User question:\n{question}\n\nRelevant verified BIS context (use only when relevant):\n{context}\n\nAnswer the user directly."
+        context_note = context if matches else "No relevant verified BIS knowledge-base records were found for this question."
+        scope_note = "This question appears to be BIS-specific." if bis_question else "This is a general conversation question."
+
+        prompt = (
+            f"User question:\n{question}\n\n"
+            f"Question classification:\n{scope_note}\n\n"
+            f"Verified BIS knowledge-base context:\n{context_note}\n\n"
+            "Answer the user directly."
+        )
 
         response = GEMINI_CLIENT.models.generate_content(
             model=GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
-                max_output_tokens=280,
+                max_output_tokens=400,
                 thinking_config=types.ThinkingConfig(thinking_level="minimal"),
             ),
         )
@@ -158,11 +181,14 @@ For important BIS compliance or certification decisions, advise the user to veri
         if answer:
             return answer, matches
 
-        return "I couldn't generate an answer right now. Please try again.", []
+        return "I couldn't generate an answer right now. Please try again.", matches
 
     except Exception as exc:
         print("GEMINI ERROR:", repr(exc))
-        return "The AI service is temporarily unavailable. Please try again in a moment.", []
+        return (
+            "The AI service encountered an error while generating the response. Please try again.",
+            [],
+        )
 
 
 @app.get("/api/health")
