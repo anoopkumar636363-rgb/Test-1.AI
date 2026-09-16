@@ -49,3 +49,12 @@ html.dark-mode body{background:#0b1118;color:#e7eef7}html.dark-mode .topbar{back
 }
 html.dark-mode .mobile-history-btn{background:#172331;border-color:#304256;color:#8fc4fa}
 html.dark-mode .mobile-history-btn:hover{background:#203044}
+
+/* Desktop only: smoothly collapse Chat History and give the freed space to the assistant. */
+@media(min-width:901px){
+  .workspace{transition:grid-template-columns .28s ease}
+  .history-panel{transition:opacity .22s ease,transform .28s ease,padding .28s ease,border-color .28s ease;overflow:hidden}
+  body.history-closed .workspace{grid-template-columns:0 minmax(430px,1fr) 390px!important}
+  body.history-closed .history-panel{display:flex!important;opacity:0;transform:translateX(-18px);pointer-events:none;padding-left:0;padding-right:0;border-right-color:transparent}
+  body.history-closed .history-toggle{display:inline-block!important}
+}
