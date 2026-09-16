@@ -20,7 +20,7 @@
   transform: none !important;
 }
 
-/* Sidebars stay fixed; their own contents can scroll. */
+/* Desktop sidebars stay fixed with no open/close animation. */
 .history-panel,
 .tools-column {
   position: relative !important;
@@ -36,7 +36,6 @@
   transform: none !important;
 }
 
-/* Remove sidebar open/close motion. */
 .history-panel * {
   transition: none !important;
 }
@@ -53,6 +52,7 @@
   }
 }
 
+/* Mobile: history becomes a real sliding drawer. */
 @media (max-width: 900px) {
   .workspace {
     position: relative !important;
@@ -62,12 +62,56 @@
     bottom: auto !important;
     width: 100% !important;
     height: auto !important;
-    min-height: calc(100vh - 72px) !important;
+    min-height: calc(100vh - 64px) !important;
     display: block !important;
     overflow: visible !important;
   }
 
-  .history-panel,
+  .history-panel {
+    position: fixed !important;
+    inset: 64px auto 0 0 !important;
+    z-index: 900 !important;
+    width: min(80vw, 280px) !important;
+    height: calc(100vh - 64px) !important;
+    display: flex !important;
+    transform: translateX(-100%) !important;
+    visibility: hidden !important;
+    opacity: 1 !important;
+    padding: 25px 17px !important;
+    pointer-events: none !important;
+    box-shadow: 16px 0 40px #183b5b25;
+    transition: transform .22s ease, visibility 0s linear .22s !important;
+  }
+
+  body.history-open .history-panel {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transition: transform .22s ease, visibility 0s linear 0s !important;
+  }
+
+  body.history-closed .history-panel {
+    transform: translateX(-100%) !important;
+    visibility: hidden !important;
+    opacity: 1 !important;
+    padding: 25px 17px !important;
+    pointer-events: none !important;
+  }
+
+  body.history-open .history-reopen {
+    display: none !important;
+  }
+
+  body.history-closed .workspace {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .history-reopen {
+    display: grid !important;
+    top: 75px !important;
+    left: 12px !important;
+  }
+
   .tools-column {
     position: relative !important;
     height: auto !important;
