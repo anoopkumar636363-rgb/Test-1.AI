@@ -24,7 +24,7 @@ DATA = json.loads(DATA_FILE.read_text(encoding="utf-8"))
 app = FastAPI(
     title="BIS AI Assistant API",
     description="SIH26107 prototype for Indian Standards and BIS services.",
-    version="2.5.0",
+    version="2.6.0",
 )
 
 app.add_middleware(
@@ -36,8 +36,14 @@ app.add_middleware(
 )
 
 
+class ChatMessage(BaseModel):
+    role: str = Field(pattern="^(user|assistant)$")
+    content: str = Field(min_length=1, max_length=4000)
+
+
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
+    history: list[ChatMessage] = Field(default_factory=list, max_length=20)
 
 
 class VerifyRequest(BaseModel):
@@ -91,7 +97,6 @@ def search_records(query: str):
             elif token in all_tokens:
                 score += 1
 
-        # Strong exact phrase matches are useful for standard names/numbers.
         title = str(item.get("title", "")).lower()
         if query_lower.strip() and query_lower.strip() in title:
             score += 6
@@ -104,7 +109,6 @@ def search_records(query: str):
 
 
 def is_bis_question(question: str) -> bool:
-    """Detect BIS-specific questions without hardcoding conversational answers."""
     q = question.lower()
     bis_terms = (
         "bis", "bureau of indian standards", "indian standard", "indian standards", "isi mark",
@@ -124,12 +128,23 @@ if GEMINI_API_KEY:
         print("GEMINI CLIENT INIT ERROR:", repr(exc))
 
 
-def ai_answer(question: str):
+def _history_prompt(history: list[ChatMessage]) -> str:
+    if not history:
+        return "No previous conversation."
+    lines = []
+    for message in history[-12:]:
+        speaker = "User" if message.role == "user" else "Assistant"
+        lines.append(f"{speaker}: {message.content}")
+    return "\n".join(lines)
+
+
+def ai_answer(question: str, history: list[ChatMessage]):
     """Let Gemini handle conversation; provide BIS context only when relevant."""
     if not GEMINI_CLIENT:
         return (
-            "The AI service is temporarily unavailable. Please check the Gemini API configuration and try again.",
+            "The AI service is not configured on the server. Check GEMINI_API_KEY in the deployment environment.",
             [],
+            "configuration",
         )
 
     try:
@@ -150,6 +165,8 @@ When a user asks a BIS-specific question, treat the supplied verified BIS knowle
 Never invent an IS number, fee, deadline, licence status, certification requirement, laboratory, law, or BIS policy.
 If a BIS-specific question has no relevant verified context, clearly say that the connected BIS knowledge base does not contain enough verified information and advise checking official BIS information rather than guessing.
 
+Use the previous conversation to understand references such as "it", "that product", "what standard applies?", and "what about certification?". Do not make the user repeat information already provided.
+
 When a user asks a general question that is not about BIS, answer it normally using your general knowledge. Do not redirect the user to BIS just because you are called the BIS AI Assistant.
 
 Do not include a separate source list, URLs, citations, or phrases such as "I found these relevant entries" or "According to the knowledge base". The application displays verified BIS sources separately when available.
@@ -161,10 +178,11 @@ For important BIS compliance or certification decisions, remind the user to veri
         scope_note = "This question appears to be BIS-specific." if bis_question else "This is a general conversation question."
 
         prompt = (
-            f"User question:\n{question}\n\n"
+            f"Previous conversation:\n{_history_prompt(history)}\n\n"
+            f"Current user question:\n{question}\n\n"
             f"Question classification:\n{scope_note}\n\n"
             f"Verified BIS knowledge-base context:\n{context_note}\n\n"
-            "Answer the user directly."
+            "Answer the current user question directly, using conversation context where useful."
         )
 
         response = GEMINI_CLIENT.models.generate_content(
@@ -172,22 +190,23 @@ For important BIS compliance or certification decisions, remind the user to veri
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
-                max_output_tokens=400,
+                max_output_tokens=500,
                 thinking_config=types.ThinkingConfig(thinking_level="minimal"),
             ),
         )
 
         answer = (response.text or "").strip()
         if answer:
-            return answer, matches
+            return answer, matches, "ok"
 
-        return "I couldn't generate an answer right now. Please try again.", matches
+        return "I couldn't generate an answer right now. Please try again.", matches, "empty"
 
     except Exception as exc:
         print("GEMINI ERROR:", repr(exc))
         return (
-            "The AI service encountered an error while generating the response. Please try again.",
+            "The AI service returned an error while generating this response. Please check the deployment logs and Gemini API configuration.",
             [],
+            "provider_error",
         )
 
 
@@ -233,7 +252,7 @@ def sources():
 
 @app.post("/api/ask")
 def ask(request: AskRequest):
-    answer, sources = ai_answer(request.question)
+    answer, sources, status = ai_answer(request.question, request.history)
     return {
         "answer": answer,
         "sources": [
@@ -248,6 +267,7 @@ def ask(request: AskRequest):
         ],
         "ai_configured": bool(GEMINI_CLIENT),
         "model": GEMINI_MODEL if GEMINI_CLIENT else None,
+        "status": status,
     }
 
 
