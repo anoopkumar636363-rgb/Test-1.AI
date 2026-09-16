@@ -143,6 +143,7 @@
         localStorage.setItem(key, dark ? 'dark' : 'light');
         apply(dark);
       });
+      document.getElementById('mobileHistoryBtn')?.addEventListener('click', () => setMobileHistory(true));
     })();
   </script>
 </body>
