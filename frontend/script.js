@@ -144,7 +144,11 @@ function renderActiveChat() {
   const box = $('chat');
   const chat = ensureActiveChat();
   box.innerHTML = '';
-  if (!chat.messages.length) { addWelcomeMessage(box); return; }
+  if (!chat.messages.length) {
+    addWelcomeMessage(box);
+    box.scrollTop = 0;
+    return;
+  }
   chat.messages.forEach((message) => {
     if (message.role === 'user') renderUserMessage(box, message.text);
     else renderBotMessage(box, message.text, message.sources || [], false);
@@ -408,12 +412,10 @@ async function verifyLicense(numberOverride = null) {
 $('verifyForm').addEventListener('submit', (event) => { event.preventDefault(); verifyLicense(); });
 function useDemoLicense(number) { openTool('verify'); $('license').value = number; verifyLicense(number); }
 
-// Wire the chat-history controls explicitly. Without these listeners the
-// buttons render correctly but do nothing when clicked.
 $('newChatBtn').addEventListener('click', newChat);
 $('clearHistoryBtn').addEventListener('click', clearHistory);
 $('closeHistory').addEventListener('click', () => setMobileHistory(false));
-$('openHistory').addEventListener('click', () => setMobileHistory(true));
+$('mobileHistoryBtn')?.addEventListener('click', () => setMobileHistory(true));
 
 function resizeTextarea() {
   const textarea = $('question');
