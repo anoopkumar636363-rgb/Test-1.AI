@@ -1,0 +1,9 @@
+{
+  "demo_student": {
+    "name": "Anoop Kumar",
+    "college": "Demo Engineering College",
+    "branch": "Computer Science",
+    "year": 3,
+    "skills": ["Python", "Git", "HTML/CSS", "Problem Solving"]
+  }
+}
